@@ -5,13 +5,23 @@ from fastapi import HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 from crewai import Task, Crew, Agent
+from opensearchpy import OpenSearch
+import openai
 from dotenv import load_dotenv
 load_dotenv()
 
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+OPENSEARCH_HOST = os.getenv("OPENSEARCH_HOST")
+OPENSEARCH_USER = os.getenv("OPENSEARCH_USER")
+OPENSEARCH_PASSWORD = os.getenv("OPENSEARCH_PASSWORD")
 
-os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
+# Inicialización de OpenSearch
+opensearch_client = OpenSearch(
+    hosts=[OPENSEARCH_HOST],
+    http_auth=(OPENSEARCH_USER, OPENSEARCH_PASSWORD)
+)
 
+openai.api_key = OPENAI_API_KEY
 
 app = FastAPI(
     title="API de Agentes Educativos",
@@ -76,6 +86,42 @@ agents = {
     "tutor_personalized": tutor_personalized
 }
 
+
+# Función para obtener el embedding de la pregunta
+def get_question_embedding(question: str):
+    response = openai.Embedding.create(
+        input=question,
+        model="text-embedding-ada-002"  # Usamos el modelo adecuado para embeddings
+    )
+    return response['data'][0]['embedding']
+
+# Función para realizar la búsqueda en OpenSearch
+def search_opensearch(query_vector, k=5):
+    response = opensearch_client.search(
+        index="your_index_name", 
+        body={
+            "query": {
+                "knn": {
+                    "your_vector_field": {
+                        "vector": query_vector,
+                        "k": k
+                    }
+                }
+            }
+        }
+    )
+    return response['hits']['hits']
+
+# Función para generar la respuesta utilizando OpenAI
+def generate_answer_from_context(context):
+    prompt = f"Utiliza solo la siguiente información para responder a la pregunta: {context}. Responde de manera clara y concisa."
+    response = openai.Completion.create(
+        model="gpt-3.5-turbo",
+        prompt=prompt,
+        max_tokens=150,
+        temperature=0.7
+    )
+    return response.choices[0].text.strip()
 
 
 # Definición de modelos Pydantic
@@ -198,6 +244,28 @@ async def recommend_materials(request: RecomendationsRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
+@app.post("/ask")
+async def ask_question(request: TestQuestionRequest):
+    try:
+        # Obtener el embedding de la pregunta
+        question_embedding = get_question_embedding(request.topic)
+
+        # Buscar en OpenSearch los documentos más relevantes
+        search_results = search_opensearch(question_embedding)
+
+        # Obtener los documentos más relevantes para generar la respuesta
+        context = "\n".join([hit["_source"]["text"] for hit in search_results])
+
+        if not context:
+            raise HTTPException(status_code=404, detail="No se encontró información relevante.")
+
+        # Generar la respuesta utilizando el modelo LLM de OpenAI con el contexto de OpenSearch
+        answer = generate_answer_from_context(context)
+
+        return {"answer": answer}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
