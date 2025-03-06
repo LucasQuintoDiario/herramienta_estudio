@@ -21,7 +21,7 @@ researcher = Agent(
 
 # Crear una tarea de investigación
 research_task = Task(
-    description='Busca información sobre The Bridge y sus programas de formación',
+    description='Busca información sobre The Bridge | Bootcamps y masters en innovacion digital y sus programas de formación',
     agent=researcher
 )
 
