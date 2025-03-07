@@ -31,7 +31,8 @@ opensearch_client = OpenSearch(
     http_auth=(CONFIG["OPENSEARCH_USERNAME"], CONFIG["OPENSEARCH_PASSWORD"])
 )
 
-embedding_model = SentenceTransformer("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -104,6 +105,21 @@ class FlashcardRequest(BaseModel):
 class ConceptExplanationRequest(BaseModel):
     concept: str
 
+
+class RecommendationsRequest(BaseModel):
+    topic: str  
+    num_materials: Optional[int] = 5
+
+class PerformanceAnalysisRequest(BaseModel):
+    student_id: str
+    exam_results: list 
+    num_recommendations: Optional[int] = 3
+
+class AnswerEvaluationRequest(BaseModel):
+    student_answers: List[str]  # Respuestas del estudiante
+    questions: List[str]  # Respuestas correctas para comparar
+
+
 # Función para obtener embeddings con Cohere
 def get_question_embedding(question: str):
     """Obtiene el embedding de una pregunta usando SentenceTransformer."""
@@ -145,9 +161,29 @@ class RAGSystem:
         # Extraer textos relevantes
         retrieved_texts = [hit["_source"]["text_chunk"] for hit in hits]
 
-        # Generar respuesta con OpenAI
-        prompt = f"Basado en la siguiente información:\n\n{retrieved_texts}\n\nPregunta: {question}\nRespuesta:"
-        return f"Respuesta generada basada en la información recuperada:\n{retrieved_texts}"
+        # Generar respuesta con OpenAI (por ejemplo, utilizando Cohere, OpenAI o cualquier otro LLM)
+        prompt = f"""
+        He recuperado la siguiente información relevante para responder la pregunta del usuario:
+        {retrieved_texts}
+        Por favor, responde a la pregunta de forma clara y concisa, sin repetir el texto original.
+        Pregunta: {question}
+        Respuesta:
+        """
+        
+        # Aquí sería donde usarías un modelo para generar la respuesta basada en el prompt.
+        # Este ejemplo es con Cohere, pero puede ser OpenAI o cualquier otro modelo.
+
+        # Suponiendo que uses Cohere:
+        response = cohere_client.generate(
+            model="command-r-plus",  # Reemplaza por el modelo que estés usando
+            prompt=prompt,
+            max_tokens=200,
+            temperature=0.3
+        )
+        
+        # Devuelves solo el texto generado, que es la respuesta
+        return response.generations[0].text.strip() if response.generations else "No se pudo generar una respuesta."
+
 
 rag = RAGSystem()
 
@@ -160,6 +196,8 @@ async def query_rag(request: QueryRequest):
     except Exception as e:
         logger.error(f"Error en la consulta RAG: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error en la consulta RAG: {str(e)}")
+    
+
 
 @app.post("/generate-test-questions")
 async def generate_test_questions(request: TestQuestionRequest):
@@ -172,6 +210,22 @@ async def generate_test_questions(request: TestQuestionRequest):
         crew = Crew(agents=[AGENTS["test_creator"]], tasks=[task], verbose=True)
         result = crew.kickoff()
         return {"questions": result.tasks_output[0].raw} if result.tasks_output else {"message": "No se pudieron generar preguntas."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+@app.post("/evaluate-answers")
+async def evaluate_answers(request: AnswerEvaluationRequest):
+    try:
+        task = Task(
+            description=f"Evalúa las respuestas del estudiante: {request.student_answers} a las siguientes preguntas {request.questions} y proporciona retroalimentación detallada.",
+            agent=AGENTS["test_evaluator"],
+            expected_output="El feedback proporcionará una explicación del concepto, la respuesta correcta y una sugerencia para mejorar."
+        )
+        crew = Crew(agents=[AGENTS["test_evaluator"]], tasks=[task], verbose=True)
+        result = crew.kickoff()
+        
+        # Retorna el feedback en formato de diccionario
+        return {"feedback": result.tasks_output[0].raw} if result.tasks_output else {"message": "No se pudo evaluar el examen."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -202,6 +256,36 @@ async def explain_concept(request: ConceptExplanationRequest):
         return {"explanation": result.tasks_output[0].raw} if result.tasks_output else {"message": "No se pudo generar la explicación."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+
+@app.post("/analyze-performance")
+async def analyze_performance(request: PerformanceAnalysisRequest):
+    try:
+        task = Task(
+            description="Analiza el desempeño del estudiante y proporciona recomendaciones.",
+            agent=AGENTS["performance_analyzer"],
+            expected_output="Recomendaciones de mejora basadas en errores comunes."
+        )
+        crew = Crew(agents=[AGENTS["performance_analyzer"]], tasks=[task], verbose=True)
+        result = crew.kickoff()
+        return {"recommendations": result.tasks_output[0].raw} if result.tasks_output else {"message": "No se pudo analizar el desempeño."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/recommend-materials")
+async def recommend_materials(request: RecommendationsRequest):
+    try:
+        task = Task(
+            description=f"Recomienda material adicional sobre {request.topic}.",
+            agent=AGENTS["tutor_personalized"],
+            expected_output="Lista de recursos recomendados."
+        )
+        crew = Crew(agents=[AGENTS["tutor_personalized"]], tasks=[task], verbose=True)
+        result = crew.kickoff()
+        return {"recommended_materials": result.tasks_output[0].raw} if result.tasks_output else {"message": "No se pudieron generar recomendaciones."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
