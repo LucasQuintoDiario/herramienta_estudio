@@ -1,27 +1,41 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 import os
 import uvicorn
-from fastapi import HTTPException
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 from crewai import Task, Crew, Agent
 from opensearchpy import OpenSearch
-import openai
+import cohere
+import logging
+from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
+
+# Cargar variables de entorno
 load_dotenv()
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-OPENSEARCH_HOST = os.getenv("OPENSEARCH_HOST")
-OPENSEARCH_USER = os.getenv("OPENSEARCH_USER")
-OPENSEARCH_PASSWORD = os.getenv("OPENSEARCH_PASSWORD")
 
-# Inicialización de OpenSearch
+# Configuración de API Keys y credenciales
+CONFIG = {
+    "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY"),
+    "OPENSEARCH_HOST": os.getenv("OPENSEARCH_HOST"),
+    "OPENSEARCH_USERNAME": os.getenv("OPENSEARCH_USERNAME"),
+    "OPENSEARCH_PASSWORD": os.getenv("OPENSEARCH_PASSWORD"),
+    "COHERE_API_KEY": os.getenv("COHERE_API_KEY"),
+    "INDEX_NAME": os.getenv("INDEX_NAME")
+}
+
+# Inicializar clientes
+cohere_client = cohere.Client(CONFIG["COHERE_API_KEY"])
 opensearch_client = OpenSearch(
-    hosts=[OPENSEARCH_HOST],
-    http_auth=(OPENSEARCH_USER, OPENSEARCH_PASSWORD)
+    hosts=[CONFIG["OPENSEARCH_HOST"]],
+    http_auth=(CONFIG["OPENSEARCH_USERNAME"], CONFIG["OPENSEARCH_PASSWORD"])
 )
 
-openai.api_key = OPENAI_API_KEY
+embedding_model = SentenceTransformer("sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+
+# Configurar logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="API de Agentes Educativos",
@@ -29,241 +43,163 @@ app = FastAPI(
     version="1.0.0"
 )
 
-test_creator = Agent(
-    role="Test Creator",
-    goal="Generar preguntas de prueba sobre temas de Data Science",
-    backstory="Experto en evaluación educativa con enfoque en ciencia de datos.",
-    verbose=True,
-    model="gpt-3.5-turbo"
-)
-
-test_evaluator = Agent(
-    role="Test Evaluator",
-    goal="Evaluar respuestas de los estudiantes y dar retroalimentación",
-    backstory="Profesor con experiencia en calificación de exámenes.",
-    verbose=True,
-    model="gpt-3.5-turbo"
-)
-
-flashcard_generator = Agent(
-    role="Flashcard Generator",
-    goal="Crear tarjetas de memoria para reforzar conceptos clave",
-    backstory="Especialista en aprendizaje activo y memorización.",
-    verbose=True,
-    model="gpt-3.5-turbo"
-)
-
-concept_explainer = Agent(
-    role="Concept Explainer",
-    goal="Explicar conceptos complejos de Data Science de forma sencilla",
-    backstory="Docente con habilidades para explicar temas difíciles de manera clara.",
-    verbose=True,
-    model="gpt-3.5-turbo"
-)
-
-performance_analyzer = Agent(
-    role="Performance Analyzer",
-    goal="Analizar tendencias en los errores de los estudiantes para mejorar su aprendizaje.",
-    backstory="Especialista en análisis de datos educativos y detección de patrones de aprendizaje.",
-    verbose=True,
-    model="gpt-3.5-turbo"
-)
-
-tutor_personalized = Agent(
-    role="Personalized Tutor",
-    goal="Recomendar material adicional según el progreso del estudiante.",
-    backstory="Mentor con experiencia en aprendizaje adaptativo y personalización de estudios.",
-    verbose=True,
-    model="gpt-3.5-turbo"
-)
-
-agents = {
-    "test_creator": test_creator,
-    "test_evaluator": test_evaluator,
-    "flashcard_generator": flashcard_generator,
-    "concept_explainer": concept_explainer,
-    "performance_analyzer": performance_analyzer,
-    "tutor_personalized": tutor_personalized
+# Definición de agentes
+AGENTS = {
+    "test_creator": Agent(
+        role="Test Creator",
+        goal="Generar preguntas de prueba sobre temas de Data Science",
+        backstory="Experto en evaluación educativa.",
+        verbose=True,
+        model="gpt-3.5-turbo"
+    ),
+    "test_evaluator": Agent(
+        role="Test Evaluator",
+        goal="Evaluar respuestas de los estudiantes y dar retroalimentación",
+        backstory="Profesor con experiencia en calificación de exámenes.",
+        verbose=True,
+        model="gpt-3.5-turbo"
+    ),
+    "flashcard_generator": Agent(
+        role="Flashcard Generator",
+        goal="Crear tarjetas de memoria para reforzar conceptos clave",
+        backstory="Especialista en aprendizaje activo y memorización.",
+        verbose=True,
+        model="gpt-3.5-turbo"
+    ),
+    "concept_explainer": Agent(
+        role="Concept Explainer",
+        goal="Explicar conceptos complejos de Data Science de forma sencilla",
+        backstory="Docente con habilidades didácticas.",
+        verbose=True,
+        model="gpt-3.5-turbo"
+    ),
+    "performance_analyzer": Agent(
+        role="Performance Analyzer",
+        goal="Analizar tendencias en los errores de los estudiantes.",
+        backstory="Especialista en análisis de datos educativos.",
+        verbose=True,
+        model="gpt-3.5-turbo"
+    ),
+    "tutor_personalized": Agent(
+        role="Personalized Tutor",
+        goal="Recomendar material adicional según el progreso del estudiante.",
+        backstory="Mentor con experiencia en aprendizaje adaptativo.",
+        verbose=True,
+        model="gpt-3.5-turbo"
+    )
 }
 
+# Modelos Pydantic
+class QueryRequest(BaseModel):
+    question: str
 
-# Función para obtener el embedding de la pregunta
-def get_question_embedding(question: str):
-    response = openai.Embedding.create(
-        input=question,
-        model="text-embedding-ada-002"  # Usamos el modelo adecuado para embeddings
-    )
-    return response['data'][0]['embedding']
-
-# Función para realizar la búsqueda en OpenSearch
-def search_opensearch(query_vector, k=5):
-    response = opensearch_client.search(
-        index="your_index_name", 
-        body={
-            "query": {
-                "knn": {
-                    "your_vector_field": {
-                        "vector": query_vector,
-                        "k": k
-                    }
-                }
-            }
-        }
-    )
-    return response['hits']['hits']
-
-# Función para generar la respuesta utilizando OpenAI
-def generate_answer_from_context(context):
-    prompt = f"Utiliza solo la siguiente información para responder a la pregunta: {context}. Responde de manera clara y concisa."
-    response = openai.Completion.create(
-        model="gpt-3.5-turbo",
-        prompt=prompt,
-        max_tokens=150,
-        temperature=0.7
-    )
-    return response.choices[0].text.strip()
-
-
-# Definición de modelos Pydantic
 class TestQuestionRequest(BaseModel):
     topic: str
     num_questions: Optional[int] = 5
 
-class AnswerEvaluationRequest(BaseModel):
-    user_answers: Dict[str, str]
-    correct_answers: Dict[str, str]
-
 class FlashcardRequest(BaseModel):
     topic: str
     num_flashcards: Optional[int] = 10
-    concepts: Optional[List[str]] = None
 
 class ConceptExplanationRequest(BaseModel):
     concept: str
 
-class PerformanceAnalysisRequest(BaseModel):
-    user_answers: Dict[str, str]
-    correct_answers: Dict[str, str]
+# Función para obtener embeddings con Cohere
+def get_question_embedding(question: str):
+    """Obtiene el embedding de una pregunta usando SentenceTransformer."""
+    return embedding_model.encode(question).tolist()
 
-class RecomendationsRequest(BaseModel):
-    topic: str
+# Clase del sistema RAG
+class RAGSystem:
+    def __init__(self):
+        logger.info("Inicializando RAGSystem...")
+        self.client = opensearch_client
+        self.index = CONFIG["INDEX_NAME"]
 
+    def query(self, question: str):
+        """Busca la mejor respuesta en OpenSearch y genera una respuesta con OpenAI."""
+        logger.info(f"Procesando pregunta: {question}")
+
+        # Obtener embedding
+        question_embedding = get_question_embedding(question)
+
+        # Realizar la búsqueda en OpenSearch
+        query = {
+            "size": 3,
+            "query": {
+                "knn": {
+                    "embedding": {
+                        "vector": question_embedding,
+                        "k": 3
+                    }
+                }
+            }
+        }
+
+        response = self.client.search(index=self.index, body=query)
+        hits = response.get("hits", {}).get("hits", [])
+
+        if not hits:
+            return "No encontré información relevante."
+
+        # Extraer textos relevantes
+        retrieved_texts = [hit["_source"]["text_chunk"] for hit in hits]
+
+        # Generar respuesta con OpenAI
+        prompt = f"Basado en la siguiente información:\n\n{retrieved_texts}\n\nPregunta: {question}\nRespuesta:"
+        return f"Respuesta generada basada en la información recuperada:\n{retrieved_texts}"
+
+rag = RAGSystem()
+
+# Endpoints
+@app.post("/query")
+async def query_rag(request: QueryRequest):
+    try:
+        response = rag.query(request.question)
+        return {"Pregunta": request.question, "Respuesta": response}
+    except Exception as e:
+        logger.error(f"Error en la consulta RAG: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error en la consulta RAG: {str(e)}")
 
 @app.post("/generate-test-questions")
 async def generate_test_questions(request: TestQuestionRequest):
     try:
         task = Task(
             description=f"Genera {request.num_questions} preguntas sobre {request.topic}",
-            agent=agents["test_creator"],
-            expected_output="Las preguntas deben ser de tipo short answer"
+            agent=AGENTS["test_creator"],
+            expected_output="Lista de preguntas tipo short answer."
         )
-        
-        crew = Crew(agents=[agents["test_creator"]], tasks=[task], verbose=True)
+        crew = Crew(agents=[AGENTS["test_creator"]], tasks=[task], verbose=True)
         result = crew.kickoff()
-        return result.tasks_output[0].raw if result.tasks_output else "No se pudieron generar preguntas."
+        return {"questions": result.tasks_output[0].raw} if result.tasks_output else {"message": "No se pudieron generar preguntas."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/evaluate-answers")
-async def evaluate_answers(request: AnswerEvaluationRequest):
-    try:
-        task = Task(
-            description="Evalúa las respuestas del estudiante y proporciona retroalimentación detallada.",
-            agent=agents["test_evaluator"],
-            expected_output="El feedback proporcionará una explicación del concepto, la respuesta correcta y una sugerencia para mejorar."
-        )
-        
-        crew = Crew(agents=[agents["test_evaluator"]], tasks=[task], verbose=True)
-        result = crew.kickoff()
-        return result.tasks_output[0].raw if result.tasks_output else "No se pudo evaluar el examen."
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.post("/create-flashcards")
 async def create_flashcards(request: FlashcardRequest):
     try:
         task = Task(
-            description=f"Crea {request.num_flashcards} flashcards sobre {request.topic}, incluyendo un concepto y una definición.",
-            agent=agents["flashcard_generator"],
-            expected_output="Tarjetas con un concepto y una definición."
+            description=f"Crea {request.num_flashcards} flashcards sobre {request.topic}",
+            agent=AGENTS["flashcard_generator"],
+            expected_output="Flashcards con concepto y definición."
         )
-        
-        crew = Crew(agents=[agents["flashcard_generator"]], tasks=[task], verbose=True)
+        crew = Crew(agents=[AGENTS["flashcard_generator"]], tasks=[task], verbose=True)
         result = crew.kickoff()
-        return result.tasks_output[0].raw if result.tasks_output else "No se pudieron generar flashcards."
+        return {"flashcards": result.tasks_output[0].raw} if result.tasks_output else {"message": "No se pudieron generar flashcards."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-
 
 @app.post("/explain-concept")
 async def explain_concept(request: ConceptExplanationRequest):
     try:
         task = Task(
             description=f"Explica el concepto de {request.concept} de manera clara y sencilla.",
-            agent=agents["concept_explainer"],
-            expected_output="Explicación clara y sencilla del concepto."
+            agent=AGENTS["concept_explainer"],
+            expected_output="Explicación clara del concepto."
         )
-        
-        crew = Crew(agents=[agents["concept_explainer"]], tasks=[task], verbose=True)
+        crew = Crew(agents=[AGENTS["concept_explainer"]], tasks=[task], verbose=True)
         result = crew.kickoff()
-        return result.tasks_output[0].raw if result.tasks_output else "No se pudo generar la explicación."
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/analyze-performance")
-async def analyze_performance(request: PerformanceAnalysisRequest):
-    try:
-        task = Task(
-            description="Analiza el desempeño del estudiante y proporciona recomendaciones.",
-            agent=agents["performance_analyzer"],
-            expected_output="Recomendaciones de mejora basadas en errores comunes."
-        )
-        
-        crew = Crew(agents=[agents["performance_analyzer"]], tasks=[task], verbose=True)
-        result = crew.kickoff()
-        return result.tasks_output[0].raw if result.tasks_output else "No se pudo analizar el desempeño."
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/recommend-materials")
-async def recommend_materials(request: RecomendationsRequest):
-    try:
-        task = Task(
-            description=f"Recomienda material adicional sobre {request.topic}.",
-            agent=agents["tutor_personalized"],
-            expected_output="Lista de recursos recomendados."
-        )
-        
-        crew = Crew(agents=[agents["tutor_personalized"]], tasks=[task], verbose=True)
-        result = crew.kickoff()
-        return result.tasks_output[0].raw if result.tasks_output else "No se pudieron generar recomendaciones."
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/ask")
-async def ask_question(request: TestQuestionRequest):
-    try:
-        # Obtener el embedding de la pregunta
-        question_embedding = get_question_embedding(request.topic)
-
-        # Buscar en OpenSearch los documentos más relevantes
-        search_results = search_opensearch(question_embedding)
-
-        # Obtener los documentos más relevantes para generar la respuesta
-        context = "\n".join([hit["_source"]["text"] for hit in search_results])
-
-        if not context:
-            raise HTTPException(status_code=404, detail="No se encontró información relevante.")
-
-        # Generar la respuesta utilizando el modelo LLM de OpenAI con el contexto de OpenSearch
-        answer = generate_answer_from_context(context)
-
-        return {"answer": answer}
+        return {"explanation": result.tasks_output[0].raw} if result.tasks_output else {"message": "No se pudo generar la explicación."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
