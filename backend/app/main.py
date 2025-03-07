@@ -48,43 +48,43 @@ app = FastAPI(
 AGENTS = {
     "test_creator": Agent(
         role="Test Creator",
-        goal="Generar preguntas de prueba sobre temas de Data Science",
-        backstory="Experto en evaluación educativa.",
+        goal="Diseñar preguntas de evaluación desafiantes y relevantes, abarcando teoría y aplicaciones prácticas.",
+        backstory="Especialista en evaluación educativa con un profundo conocimiento en ciencia de datos. Crea exámenes estructurados para medir comprensión teórica y habilidades analíticas.",
         verbose=True,
         model="gpt-3.5-turbo"
     ),
     "test_evaluator": Agent(
         role="Test Evaluator",
-        goal="Evaluar respuestas de los estudiantes y dar retroalimentación",
-        backstory="Profesor con experiencia en calificación de exámenes.",
+        goal="Calificar respuestas con precisión y proporcionar retroalimentación clara y útil para mejorar la comprensión del estudiante.",
+        backstory="Profesor con experiencia en la evaluación de exámenes de Data Science. Su método de calificación identifica fortalezas y áreas de mejora.",
         verbose=True,
         model="gpt-3.5-turbo"
     ),
     "flashcard_generator": Agent(
         role="Flashcard Generator",
-        goal="Crear tarjetas de memoria para reforzar conceptos clave",
-        backstory="Especialista en aprendizaje activo y memorización.",
+        goal="Generar tarjetas de memoria efectivas que ayuden a reforzar conceptos clave de Data Science de forma clara y memorable.",
+        backstory="Experto en técnicas de aprendizaje activo y retención de información, con experiencia en la creación de material didáctico interactivo.",
         verbose=True,
         model="gpt-3.5-turbo"
     ),
     "concept_explainer": Agent(
         role="Concept Explainer",
-        goal="Explicar conceptos complejos de Data Science de forma sencilla",
-        backstory="Docente con habilidades didácticas.",
+        goal="Explicar conceptos de manera clara y accesible, utilizando ejemplos prácticos y analogías intuitivas.",
+        backstory="Docente apasionado por simplificar temas complejos, facilitando la comprensión a estudiantes con distintos niveles de experiencia.",
         verbose=True,
         model="gpt-3.5-turbo"
     ),
     "performance_analyzer": Agent(
         role="Performance Analyzer",
-        goal="Analizar tendencias en los errores de los estudiantes.",
-        backstory="Especialista en análisis de datos educativos.",
+        goal="Identificar patrones en los errores de los estudiantes y proporcionar estrategias de mejora basadas en datos.",
+        backstory="Especialista en análisis de datos educativos, con experiencia en detectar tendencias de desempeño y optimizar estrategias de aprendizaje.",
         verbose=True,
         model="gpt-3.5-turbo"
     ),
     "tutor_personalized": Agent(
         role="Personalized Tutor",
-        goal="Recomendar material adicional según el progreso del estudiante.",
-        backstory="Mentor con experiencia en aprendizaje adaptativo.",
+        goal="Sugerir materiales de estudio personalizados que refuercen los conocimientos del estudiante según sus necesidades específicas.",
+        backstory="Mentor en aprendizaje adaptativo, capaz de seleccionar recursos óptimos para cada estudiante con base en su rendimiento académico.",
         verbose=True,
         model="gpt-3.5-turbo"
     )
@@ -205,7 +205,7 @@ async def generate_test_questions(request: TestQuestionRequest):
         task = Task(
             description=f"Genera {request.num_questions} preguntas sobre {request.topic}",
             agent=AGENTS["test_creator"],
-            expected_output="Lista de preguntas tipo short answer."
+            expected_output="Lista de preguntas de evaluación con una combinación equilibrada de teoría y práctica, diseñadas para medir comprensión y habilidades."
         )
         crew = Crew(agents=[AGENTS["test_creator"]], tasks=[task], verbose=True)
         result = crew.kickoff()
@@ -219,7 +219,7 @@ async def evaluate_answers(request: AnswerEvaluationRequest):
         task = Task(
             description=f"Evalúa las respuestas del estudiante: {request.student_answers} a las siguientes preguntas {request.questions} y proporciona retroalimentación detallada.",
             agent=AGENTS["test_evaluator"],
-            expected_output="El feedback proporcionará una explicación del concepto, la respuesta correcta y una sugerencia para mejorar."
+            expected_output="Informe de evaluación detallado con puntuaciones, análisis de errores y retroalimentación específica para cada respuesta."
         )
         crew = Crew(agents=[AGENTS["test_evaluator"]], tasks=[task], verbose=True)
         result = crew.kickoff()
@@ -249,7 +249,7 @@ async def explain_concept(request: ConceptExplanationRequest):
         task = Task(
             description=f"Explica el concepto de {request.concept} de manera clara y sencilla.",
             agent=AGENTS["concept_explainer"],
-            expected_output="Explicación clara del concepto."
+            expected_output="Explicación clara del concepto con ejemplos prácticos y analogías intuitivas que faciliten su comprensión a distintos niveles.."
         )
         crew = Crew(agents=[AGENTS["concept_explainer"]], tasks=[task], verbose=True)
         result = crew.kickoff()
@@ -264,7 +264,7 @@ async def analyze_performance(request: PerformanceAnalysisRequest):
         task = Task(
             description="Analiza el desempeño del estudiante y proporciona recomendaciones.",
             agent=AGENTS["performance_analyzer"],
-            expected_output="Recomendaciones de mejora basadas en errores comunes."
+            expected_output="Informe con análisis de patrones de error y recomendaciones estratégicas para mejorar el desempeño del estudiante."
         )
         crew = Crew(agents=[AGENTS["performance_analyzer"]], tasks=[task], verbose=True)
         result = crew.kickoff()
@@ -276,9 +276,9 @@ async def analyze_performance(request: PerformanceAnalysisRequest):
 async def recommend_materials(request: RecommendationsRequest):
     try:
         task = Task(
-            description=f"Recomienda material adicional sobre {request.topic}.",
+            description=f"Sugerir materiales de estudio personalizados para un estudiante con dificultades en conceptos relacionados con {request.topic} Incluir artículos, videos y ejercicios prácticos adecuados a su nivel.",
             agent=AGENTS["tutor_personalized"],
-            expected_output="Lista de recursos recomendados."
+            expected_output="Lista de recursos de estudio personalizados, con explicaciones y ejercicios diseñados para mejorar la comprensión de los conceptos necesarios."
         )
         crew = Crew(agents=[AGENTS["tutor_personalized"]], tasks=[task], verbose=True)
         result = crew.kickoff()
