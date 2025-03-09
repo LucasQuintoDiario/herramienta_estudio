@@ -56,7 +56,7 @@ AGENTS = {
     "test_evaluator": Agent(
         role="Test Evaluator",
         goal="Calificar respuestas con precisión y proporcionar retroalimentación clara y útil para mejorar la comprensión del estudiante.",
-        backstory="Profesor con experiencia en la evaluación de exámenes de Data Science. Su método de calificación identifica fortalezas y áreas de mejora.",
+        backstory="Profesor con experiencia en la evaluación de exámenes de Data Science.",
         verbose=True,
         model="gpt-3.5-turbo"
     ),
@@ -219,7 +219,7 @@ async def evaluate_answers(request: AnswerEvaluationRequest):
         task = Task(
             description=f"Evalúa las respuestas del estudiante: {request.student_answers} a las siguientes preguntas {request.questions} y proporciona retroalimentación detallada.",
             agent=AGENTS["test_evaluator"],
-            expected_output="Informe de evaluación detallado con puntuaciones, análisis de errores y retroalimentación específica para cada respuesta."
+            expected_output="Informe de evaluación detallado con puntuaciones, análisis de errores y retroalimentación específica para cada respuesta de forma resumida para que no haya excesivo texto."
         )
         crew = Crew(agents=[AGENTS["test_evaluator"]], tasks=[task], verbose=True)
         result = crew.kickoff()
@@ -264,7 +264,7 @@ async def analyze_performance(request: PerformanceAnalysisRequest):
         task = Task(
             description="Analiza el desempeño del estudiante y proporciona recomendaciones.",
             agent=AGENTS["performance_analyzer"],
-            expected_output="Informe con análisis de patrones de error y recomendaciones estratégicas para mejorar el desempeño del estudiante."
+            expected_output="Informe con análisis de patrones de error y recomendaciones estratégicas para mejorar el desempeño del estudiante, la respuesta debe unica y ser diferente a la respuesta proporcionada por el agente llamado evaluate-answers."
         )
         crew = Crew(agents=[AGENTS["performance_analyzer"]], tasks=[task], verbose=True)
         result = crew.kickoff()
