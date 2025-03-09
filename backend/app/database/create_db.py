@@ -71,6 +71,8 @@ try:
         Nombre VARCHAR(100) NOT NULL,
         Apellidos VARCHAR(100) NOT NULL,
         Fecha_nacimiento DATE NOT NULL,
+        nombre_usuario VARCHAR(255) NOT NULL,
+        password VARCHAR(255) NOT NULL,
         FOREIGN KEY (ID_Vertical) REFERENCES Verticales(ID_Vertical) ON DELETE SET NULL
     )
     """)
