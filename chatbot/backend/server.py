@@ -14,6 +14,19 @@ from Rag_sistem import RAGSystem  # Importar la clase RAGSystem
 # Cargar variables de entorno
 load_dotenv()
 
+# Configuración de API Keys y credenciales
+CONFIG = {
+    "COHERE_API_KEY" : os.getenv('COHERE_API_KEY'),
+    "PINECONE_API_KEY" : os.getenv('PINECONE_API_KEY'),
+    "PINECONE_ENVIRONMENT" : os.getenv('PINECONE_ENVIRONMENT'),
+    "INDEX_NAME" : "desafiofinal",
+    "BBDD_USERNAME": os.getenv("BBDD_USERNAME"),
+    "BBDD_PASSWORD": os.getenv("BBDD_PASSWORD"),
+    "BBDD_HOST": os.getenv("BBDD_HOST"),
+    "BBDD_PORT": int(os.getenv("BBDD_PORT", 3306)),  # Puerto por defecto 3306
+    "BBDD_NAME": 'consultas'
+}
+
 def get_db_connection():
     return pymysql.connect(
         host=CONFIG["BBDD_HOST"],
@@ -23,14 +36,6 @@ def get_db_connection():
         port=CONFIG["BBDD_PORT"],
         cursorclass=pymysql.cursors.DictCursor
     )
-
-# Configuración de API Keys y credenciales
-CONFIG = {
-    "COHERE_API_KEY" : os.getenv('COHERE_API_KEY'),
-    "PINECONE_API_KEY" : os.getenv('PINECONE_API_KEY'),
-    "PINECONE_ENVIRONMENT" : os.getenv('PINECONE_ENVIRONMENT'),
-    "INDEX_NAME" : "desafiofinal"
-}
 
 app = FastAPI()
 
