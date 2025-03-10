@@ -6,6 +6,8 @@ app = FastAPI(
     version="1.0.0"
 )
 
+
+
 # Verificación de token
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
@@ -194,7 +196,7 @@ async def explain_concept(request: ConceptExplanationRequest, user_id: int = Dep
     try:
         task_generation = Task(
             description=f"""
-            Explica el concepto '{request.concept}' de forma clara y didáctica.
+            Explica el concepto '{request.concept}' de forma clara y didáctica relacionado con Data Science.
             
             - Usa un lenguaje sencillo pero técnico.
             - Proporciona un ejemplo práctico.

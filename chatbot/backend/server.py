@@ -7,6 +7,8 @@ import cohere
 import logging
 from dotenv import load_dotenv
 from pydantic import BaseModel
+import pymysql
+import json
 from Rag_sistem import RAGSystem  # Importar la clase RAGSystem
 
 # Cargar variables de entorno
@@ -17,8 +19,23 @@ CONFIG = {
     "COHERE_API_KEY" : os.getenv('COHERE_API_KEY'),
     "PINECONE_API_KEY" : os.getenv('PINECONE_API_KEY'),
     "PINECONE_ENVIRONMENT" : os.getenv('PINECONE_ENVIRONMENT'),
-    "INDEX_NAME" : "desafiofinal"
+    "INDEX_NAME" : "desafiofinal",
+    "BBDD_USERNAME": os.getenv("BBDD_USERNAME"),
+    "BBDD_PASSWORD": os.getenv("BBDD_PASSWORD"),
+    "BBDD_HOST": os.getenv("BBDD_HOST"),
+    "BBDD_PORT": int(os.getenv("BBDD_PORT", 3306)),  # Puerto por defecto 3306
+    "BBDD_NAME": 'consultas'
 }
+
+def get_db_connection():
+    return pymysql.connect(
+        host=CONFIG["BBDD_HOST"],
+        user=CONFIG["BBDD_USERNAME"],
+        password=CONFIG["BBDD_PASSWORD"],
+        database=CONFIG["BBDD_NAME"],
+        port=CONFIG["BBDD_PORT"],
+        cursorclass=pymysql.cursors.DictCursor
+    )
 
 app = FastAPI()
 
@@ -46,9 +63,18 @@ rag = RAGSystem()
 async def chat(request: QueryRequest):
     try:
         response = rag.query(request.message)
-        return {
-            "message": response
-        }
+        db = get_db_connection()
+        try:
+            with db.cursor() as cursor:
+                query = "INSERT INTO consultas (pregunta, respuesta) VALUES (%s, %s, %s, %s)"
+                cursor.execute(query, (json.dumps(request.message), response))
+                db.commit()
+            return {"message": response}
+        except pymysql.MySQLError as e:
+            raise HTTPException(status_code=500, detail=f"Error en la consulta RAG: {str(e)}")
+        finally:
+            db.close()
+
     except Exception as e:
         logger.error(f"Error en la consulta RAG: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error en la consulta RAG: {str(e)}")    
