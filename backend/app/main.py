@@ -1,143 +1,10 @@
-from fastapi import FastAPI, HTTPException, Depends, Request
-import os
-import uvicorn
-from pydantic import BaseModel
-from typing import List, Dict, Optional
-from crewai import Task, Crew, Agent
-from opensearchpy import OpenSearch
-import cohere
-import logging
-import pymysql
-import redis
-import uuid
-import json
-from sentence_transformers import SentenceTransformer
-from dotenv import load_dotenv
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
-
-# Cargar variables de entorno
-load_dotenv()
-
-# Configuración de API Keys y credenciales
-CONFIG = {
-    "OPENAI_API_KEY": os.getenv("OPENAI_API_KEY"),
-    "OPENSEARCH_HOST": os.getenv("OPENSEARCH_HOST"),
-    "OPENSEARCH_USERNAME": os.getenv("OPENSEARCH_USERNAME"),
-    "OPENSEARCH_PASSWORD": os.getenv("OPENSEARCH_PASSWORD"),
-    "COHERE_API_KEY": os.getenv("COHERE_API_KEY"),
-    "INDEX_NAME": os.getenv("INDEX_NAME"),
-    "BBDD_USERNAME": os.getenv("BBDD_USERNAME"),
-    "BBDD_PASSWORD": os.getenv("BBDD_PASSWORD"),
-    "BBDD_HOST": os.getenv("BBDD_HOST"),
-    "BBDD_PORT": int(os.getenv("BBDD_PORT", 3306)),  # Puerto por defecto 3306
-    "BBDD_NAME": os.getenv("BBDD_NAME",'users_registrados')  # Nombre de la BBDD
-}
-
-# Inicializar clientes
-redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
-cohere_client = cohere.Client(CONFIG["COHERE_API_KEY"])
-opensearch_client = OpenSearch(
-    hosts=[CONFIG["OPENSEARCH_HOST"]],
-    http_auth=(CONFIG["OPENSEARCH_USERNAME"], CONFIG["OPENSEARCH_PASSWORD"])
-)
-embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
-
-# Configurar logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from utils import *
 
 app = FastAPI(
     title="API de Agentes Educativos",
     description="API para interactuar con agentes de CrewAI en educación.",
     version="1.0.0"
 )
-
-# Seguridad para autenticación con token
-security = HTTPBearer()
-
-# Definición de agentes
-AGENTS = {
-    "test_creator": Agent(
-        role="Test Creator",
-        goal="Diseñar preguntas de evaluación desafiantes y relevantes, abarcando teoría.",
-        backstory="Especialista en evaluación educativa con un profundo conocimiento en ciencia de datos. Crea exámenes estructurados para medir comprensión teórica y habilidades analíticas.",
-        verbose=True,
-        model="gpt-3.5-turbo"
-    ),
-    "test_evaluator": Agent(
-        role="Test Evaluator",
-        goal="Calificar respuestas con precisión y proporcionar retroalimentación clara y útil para mejorar la comprensión del estudiante.",
-        backstory="Profesor con experiencia en la evaluación de exámenes de Data Science. Su método de calificación identifica fortalezas y áreas de mejora.",
-        verbose=True,
-        model="gpt-3.5-turbo"
-    ),
-    "flashcard_generator": Agent(
-        role="Flashcard Generator",
-        goal="Generar tarjetas de memoria efectivas que ayuden a reforzar conceptos clave de Data Science de forma clara y memorable.",
-        backstory="Experto en técnicas de aprendizaje activo y retención de información, con experiencia en la creación de material didáctico interactivo.",
-        verbose=True,
-        model="gpt-3.5-turbo"
-    ),
-    "concept_explainer": Agent(
-        role="Concept Explainer",
-        goal="Explicar conceptos de manera clara y accesible, utilizando ejemplos prácticos y analogías intuitivas.",
-        backstory="Docente apasionado por simplificar temas complejos, facilitando la comprensión a estudiantes con distintos niveles de experiencia.",
-        verbose=True,
-        model="gpt-3.5-turbo"
-    ),
-    "performance_analyzer": Agent(
-        role="Performance Analyzer",
-        goal="Identificar patrones en los errores de los estudiantes y proporcionar estrategias de mejora basadas en datos.",
-        backstory="Especialista en análisis de datos educativos, con experiencia en detectar tendencias de desempeño y optimizar estrategias de aprendizaje.",
-        verbose=True,
-        model="gpt-3.5-turbo"
-    ),
-    "tutor_personalized": Agent(
-        role="Personalized Tutor",
-        goal="Sugerir materiales de estudio personalizados que refuercen los conocimientos del estudiante según sus necesidades específicas.",
-        backstory="Mentor en aprendizaje adaptativo, capaz de seleccionar recursos óptimos para cada estudiante con base en su rendimiento académico.",
-        verbose=True,
-        model="gpt-3.5-turbo"
-    )
-}
-
-# Modelos Pydantic (actualizados)
-class LoginRequest(BaseModel):
-    nombre_usuario: str
-    password: str
-
-class TestQuestionRequest(BaseModel):
-    topic: str
-    num_questions: Optional[int] = 5
-
-class AnswerEvaluationRequest(BaseModel):
-    student_answers: List[str]
-
-class FlashcardRequest(BaseModel):
-    topic: str
-    num_flashcards: Optional[int] = 10
-
-class ConceptExplanationRequest(BaseModel):
-    concept: str
-
-class RecommendationsRequest(BaseModel):
-    topic: str
-    num_materials: Optional[int] = 5
-
-class PerformanceAnalysisRequest(BaseModel):
-    student_id: str
-
-# Función para conectar a la base de datos
-def get_db_connection():
-    return pymysql.connect(
-        host=CONFIG["BBDD_HOST"],
-        user=CONFIG["BBDD_USERNAME"],
-        password=CONFIG["BBDD_PASSWORD"],
-        database=CONFIG["BBDD_NAME"],
-        port=CONFIG["BBDD_PORT"],
-        cursorclass=pymysql.cursors.DictCursor
-    )
 
 # Verificación de token
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -178,17 +45,34 @@ async def login(request: LoginRequest):
         db.close()
 
 
+   
 @app.post("/generate-test-questions")
 async def generate_test_questions(request: TestQuestionRequest, req: Request, user_id: int = Depends(get_current_user)):
     try:
-        task = Task(
-            description=f"Genera {request.num_questions} preguntas sobre {request.topic}",
+        # 1️⃣ Generar preguntas
+        task_generation = Task(
+            description=f"Genera {request.num_questions} preguntas sobre {request.topic}, asegurando que cada pregunta sea clara y este bien formulada.",
             agent=AGENTS["test_creator"],
             expected_output="Lista de preguntas de evaluación teórica."
         )
-        crew = Crew(agents=[AGENTS["test_creator"]], tasks=[task], verbose=True)
+        
+        # 2️⃣ Validar preguntas con el supervisor
+        task_supervision = Task(
+            description=f"Revisa estas preguntas y confirma que sean relevantes para Data Science y de calidad: {task_generation.expected_output}",
+            agent=AGENTS["content_supervisor"],
+            expected_output="Confirmación de calidad o rechazo de calidad, en caso de rechazar incluir la palabra rechazado."
+        )
+        
+        # Ejecutar Crew con ambos agentes
+        crew = Crew(agents=[AGENTS["test_creator"], AGENTS["content_supervisor"]], tasks=[task_generation, task_supervision], verbose=True)
         result = crew.kickoff()
+        
+        # 3️⃣ Obtener la salida
         questions = result.tasks_output[0].raw if result.tasks_output else "No se pudieron generar preguntas."
+        supervision_feedback = result.tasks_output[1].raw if result.tasks_output else "No se pudo verificar la calidad."
+        
+        if "rechazado" in supervision_feedback.lower():
+            raise HTTPException(status_code=400, detail="No se pueden generar preguntas sobre ese concepto.")
         
         # Convertir questions a lista si es necesario
         if isinstance(questions, str):
@@ -236,7 +120,7 @@ async def evaluate_answers(request: AnswerEvaluationRequest, req: Request, user_
         task = Task(
             description=f"Evalúa las respuestas: {request.student_answers} para las preguntas: {questions}",
             agent=AGENTS["test_evaluator"],
-            expected_output="Informe de evaluación detallado con puntuaciones, análisis de errores y retroalimentación específica para cada respuesta de forma resumida para que no haya excesivo texto."
+            expected_output="Informe de evaluación, análisis de errores y retroalimentación de forma resumida para que no haya excesivo texto, pero sea claro sobre aspectos a mejorar y como."
         )
         crew = Crew(agents=[AGENTS["test_evaluator"]], tasks=[task], verbose=True)
         result = crew.kickoff()
@@ -266,15 +150,30 @@ async def evaluate_answers(request: AnswerEvaluationRequest, req: Request, user_
 @app.post("/create-flashcards")
 async def create_flashcards(request: FlashcardRequest, user_id: int = Depends(get_current_user)):
     try:
-        task = Task(
-            description=f"Crea {request.num_flashcards} flashcards sobre {request.topic}",
+        task_generation = Task(
+                description=f"""
+    Genera {request.num_flashcards} flashcards sobre {request.topic}. 
+    - Cada flashcard debe tener una pregunta y una respuesta corta y clara.
+    - La información debe ser 100% relevante para Data Science.
+    - No uses definiciones genéricas, prioriza explicaciones prácticas y ejemplos.
+    """,
             agent=AGENTS["flashcard_generator"],
             expected_output="Flashcards con concepto y definición."
         )
-        crew = Crew(agents=[AGENTS["flashcard_generator"]], tasks=[task], verbose=True)
+
+        task_supervision = Task(
+            description=f"Revisa estas flashcards y confirma que sean relevantes para Data Science y de calidad: {task_generation.expected_output}",
+            agent=AGENTS["content_supervisor"],
+            expected_output="Confirmación de calidad o echazo de calidad, en caso de rechazar incluir la palabra rechazado."
+        )
+
+        crew = Crew(agents=[AGENTS["flashcard_generator"], AGENTS["content_supervisor"]], tasks=[task_generation, task_supervision], verbose=True)
         result = crew.kickoff()
         flashcards = result.tasks_output[0].raw if result.tasks_output else "No se pudieron generar flashcards."
+        supervision_feedback = result.tasks_output[1].raw if result.tasks_output else "No se pudo verificar la calidad."
         
+        if "rechazado" in supervision_feedback.lower():
+            raise HTTPException(status_code=400, detail="Las flashcards generadas no cumplen con los estándares de calidad.")
         # Guardar en la base de datos
         db = get_db_connection()
         try:
@@ -293,15 +192,30 @@ async def create_flashcards(request: FlashcardRequest, user_id: int = Depends(ge
 @app.post("/explain-concept")
 async def explain_concept(request: ConceptExplanationRequest, user_id: int = Depends(get_current_user)):
     try:
-        task = Task(
-            description=f"Explica el concepto de {request.concept} de manera clara y sencilla.",
+        task_generation = Task(
+            description=f"""
+            Explica el concepto '{request.concept}' de forma clara y didáctica.
+            
+            - Usa un lenguaje sencillo pero técnico.
+            - Proporciona un ejemplo práctico.
+            - Evita explicaciones demasiado teóricas, enfócate en la aplicación en Data Science.
+            """,            
             agent=AGENTS["concept_explainer"],
-            expected_output="Explicación clara del concepto con ejemplos prácticos y analogías intuitivas que faciliten su comprensión a distintos niveles.."
+            expected_output="Explicación clara con un ejemplo práctico."
         )
-        crew = Crew(agents=[AGENTS["concept_explainer"]], tasks=[task], verbose=True)
+
+        task_supervision = Task(
+            description=f"Revisa este contenido y confirma que sean relevantes para Data Science y de calidad: {task_generation.expected_output}",
+            agent=AGENTS["content_supervisor"],
+            expected_output="Confirmación de calidad o echazo de calidad, en caso de rechazar incluir la palabra rechazado."
+        )
+        crew = Crew(agents=[AGENTS["concept_explainer"], AGENTS["content_supervisor"]], tasks=[task_generation, task_supervision], verbose=True)
         result = crew.kickoff()
         explanation = result.tasks_output[0].raw if result.tasks_output else "No se pudo generar la explicación."
+        supervision_feedback = result.tasks_output[1].raw if result.tasks_output else "No se pudo verificar la calidad."
         
+        if "rechazado" in supervision_feedback.lower():
+            raise HTTPException(status_code=400, detail="El concepto solicitado no cumplen con los estándares de calidad.")
         # Guardar en la base de datos
         db = get_db_connection()
         try:
@@ -320,14 +234,32 @@ async def explain_concept(request: ConceptExplanationRequest, user_id: int = Dep
 @app.post("/recommend-materials")
 async def recommend_materials(request: RecommendationsRequest, user_id: int = Depends(get_current_user)):
     try:
-        task = Task(
-            description=f"Sugerir {request.num_materials} materiales sobre {request.topic}.",
+        task_generation = Task(
+            description=f"""
+            Recomienda {request.num_materials} recursos de aprendizaje sobre '{request.topic}' en Data Science.
+            
+            - Incluye libros, cursos online y artículos.
+            - Solo sugiere fuentes confiables como libros académicos, Coursera, edX, etc.
+            - Especifica por qué cada recurso es útil y para qué nivel (básico, intermedio, avanzado).
+            """,
             agent=AGENTS["tutor_personalized"],
-            expected_output="Lista de recursos de estudio personalizados, con explicaciones y ejercicios diseñados para mejorar la comprensión de los conceptos necesarios."
+            expected_output="Lista de recursos bien estructurada."
         )
-        crew = Crew(agents=[AGENTS["tutor_personalized"]], tasks=[task], verbose=True)
+
+        task_supervision = Task(
+            description=f"Revisa estos materiales y confirma que sean relevantes para Data Science y de calidad: {task_generation.expected_output}",
+            agent=AGENTS["content_supervisor"],
+            expected_output="Confirmación de calidad o sugerencias de mejora."
+        )
+        
+        # Ejecutar Crew con ambos agentes
+        crew = Crew(agents=[AGENTS["tutor_personalized"], AGENTS["content_supervisor"]], tasks=[task_generation, task_supervision], verbose=True)
         result = crew.kickoff()
         materials = result.tasks_output[0].raw if result.tasks_output else "No se pudieron generar recomendaciones."
+        supervision_feedback = result.tasks_output[1].raw if result.tasks_output else "No se pudo verificar la calidad."
+        
+        if "rechazado" in supervision_feedback.lower():
+            raise HTTPException(status_code=400, detail="El material generado no cumplen con los estándares de calidad.")
         
         # Guardar en la base de datos
         db = get_db_connection()
@@ -355,7 +287,7 @@ async def analyze_performance(user_id: int = Depends(get_current_user)):
                 cursor.execute(query, (user_id,))
                 results = cursor.fetchall()
                 if not results:
-                    raise HTTPException(status_code=404, detail="No hay evaluaciones para este usuario")
+                    raise HTTPException(status_code=404, detail="No hay suficiente información para generar el informe")
                 feedback_list = [result["Feedback"] for result in results]
         except pymysql.MySQLError as e:
             raise HTTPException(status_code=500, detail=f"Error al consultar evaluaciones: {str(e)}")
@@ -366,7 +298,7 @@ async def analyze_performance(user_id: int = Depends(get_current_user)):
         task = Task(
             description=f"Analiza el desempeño basado en: {feedback_list}",
             agent=AGENTS["performance_analyzer"],
-            expected_output="Informe con análisis de patrones de error y recomendaciones estratégicas para mejorar el desempeño del estudiante, la respuesta debe unica y ser diferente a la respuesta proporcionada por el agente llamado evaluate-answers."
+            expected_output="Informe con análisis de patrones de error basado en  el conjunto de feedbacks  proporcionados por el agente llamado evaluate-answers y recomendaciones estratégicas para mejorar el desempeño del estudiante, la respuesta debe unica y ser diferente a la respuesta proporcionada por el agente llamado evaluate-answers."
         )
         crew = Crew(agents=[AGENTS["performance_analyzer"]], tasks=[task], verbose=True)
         result = crew.kickoff()
