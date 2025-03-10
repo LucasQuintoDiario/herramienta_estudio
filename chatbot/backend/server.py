@@ -7,10 +7,22 @@ import cohere
 import logging
 from dotenv import load_dotenv
 from pydantic import BaseModel
+import pymysql
+import json
 from Rag_sistem import RAGSystem  # Importar la clase RAGSystem
 
 # Cargar variables de entorno
 load_dotenv()
+
+def get_db_connection():
+    return pymysql.connect(
+        host=CONFIG["BBDD_HOST"],
+        user=CONFIG["BBDD_USERNAME"],
+        password=CONFIG["BBDD_PASSWORD"],
+        database=CONFIG["BBDD_NAME"],
+        port=CONFIG["BBDD_PORT"],
+        cursorclass=pymysql.cursors.DictCursor
+    )
 
 # Configuración de API Keys y credenciales
 CONFIG = {
@@ -46,9 +58,18 @@ rag = RAGSystem()
 async def chat(request: QueryRequest):
     try:
         response = rag.query(request.message)
-        return {
-            "message": response
-        }
+        db = get_db_connection()
+        try:
+            with db.cursor() as cursor:
+                query = "INSERT INTO consultas (pregunta, respuesta) VALUES (%s, %s, %s, %s)"
+                cursor.execute(query, (json.dumps(request.message), response))
+                db.commit()
+            return {"message": response}
+        except pymysql.MySQLError as e:
+            raise HTTPException(status_code=500, detail=f"Error en la consulta RAG: {str(e)}")
+        finally:
+            db.close()
+
     except Exception as e:
         logger.error(f"Error en la consulta RAG: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error en la consulta RAG: {str(e)}")    
