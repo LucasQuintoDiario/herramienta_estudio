@@ -56,6 +56,7 @@ app = FastAPI(
 # Seguridad para autenticación con token
 security = HTTPBearer()
 
+
 # Definición de agentes
 AGENTS = {
     "test_creator": Agent(
@@ -153,3 +154,25 @@ def get_db_connection():
         cursorclass=pymysql.cursors.DictCursor
     )
 
+
+# Función para parsear las flashcards en formato estructurado
+def parse_flashcards(raw_flashcards: str):
+    flashcards = []
+    # Asumiendo que las flashcards vienen como texto con el formato 'Flashcard X', vamos a dividirlas
+    parts = raw_flashcards.split('---')  # Separar cada flashcard
+    for part in parts:
+        if part.strip():  # Ignorar los vacíos
+            # Extraer la pregunta y respuesta usando expresiones regulares o búsqueda de texto
+            question_start = part.find("*Pregunta:*") + len("*Pregunta:*")
+            answer_start = part.find("*Respuesta:*") + len("*Respuesta:*")
+            
+            if question_start != -1 and answer_start != -1:
+                question = part[question_start:part.find("*Respuesta:*")].strip()
+                answer = part[answer_start:].strip()
+                
+                flashcards.append({
+                    "pregunta": question,
+                    "respuesta": answer
+                })
+    
+    return flashcards

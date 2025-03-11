@@ -1,4 +1,11 @@
 from utils import *
+from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
+
 
 app = FastAPI(
     title="API de Agentes Educativos",
@@ -6,7 +13,33 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# Configurar CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
+# Obtener la ruta base del proyecto
+BASE_DIR = Path(__file__).resolve().parent.parent.parent  # Sube dos niveles desde backend/app
+
+# Montar archivos estáticos
+static_path = BASE_DIR / "frontend" / "static"
+if not static_path.exists():
+    raise RuntimeError(f"El directorio de archivos estáticos no existe: {static_path}")
+
+app.mount("/static", StaticFiles(directory=static_path), name="static")
+
+# Configurar templates
+templates = Jinja2Templates(directory=BASE_DIR / "frontend" / "templates")
+
+
+# Ruta para servir la página principal
+@app.get("/", response_class=HTMLResponse)
+async def read_root(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 # Verificación de token
 async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
@@ -153,16 +186,43 @@ async def evaluate_answers(request: AnswerEvaluationRequest, req: Request, user_
 async def create_flashcards(request: FlashcardRequest, user_id: int = Depends(get_current_user)):
     try:
         task_generation = Task(
-                description=f"""
-    Genera {request.num_flashcards} flashcards sobre {request.topic}. 
-    - Cada flashcard debe tener una pregunta y una respuesta corta y clara.
-    - La información debe ser 100% relevante para Data Science.
-    - No uses definiciones genéricas, prioriza explicaciones prácticas y ejemplos.
-    """,
-            agent=AGENTS["flashcard_generator"],
-            expected_output="Flashcards con concepto y definición."
-        )
+            description=f"""
+        Genera {request.num_flashcards} flashcards sobre {request.topic}. 
+        Cada flashcard debe seguir este formato exacto:
 
+        **Flashcard X**  
+        *Pregunta:* [Pregunta aquí]  
+        *Respuesta:* [Respuesta aquí]
+
+        ---
+
+        Por ejemplo:
+
+        **Flashcard 1**  
+        *Pregunta:* ¿Qué es un bucle for en Python?  
+        *Respuesta:* Un bucle for en Python permite iterar sobre una secuencia (como una lista o un rango) para ejecutar un bloque de código varias veces.
+
+        ---
+
+        **Flashcard 2**  
+        *Pregunta:* ¿Cómo se usa un bucle for para iterar sobre una lista en Python?  
+        *Respuesta:* Se puede usar de la siguiente manera: `for item in lista:`, donde `lista` es la colección de elementos a iterar.
+
+        ---
+
+        **Flashcard 3**  
+        *Pregunta:* ¿Qué función cumple la función `range()` en un bucle for?  
+        *Respuesta:* La función `range(n)` genera una secuencia de números del 0 al n-1, útil para iterar un número fijo de veces, por ejemplo: `for i in range(5):`.
+
+        ---
+
+        Asegúrate de que cada flashcard esté numerada correctamente (Flashcard 1, Flashcard 2, etc.) y que se mantenga el formato con los guiones.
+            - La información debe ser 100% relevante para Data Science.
+            - No uses definiciones genéricas, prioriza explicaciones prácticas y ejemplos.
+            """,
+            agent=AGENTS["flashcard_generator"],
+            expected_output="Flashcards con formato específico y relevante para Data Science."
+        )
         task_supervision = Task(
             description=f"Revisa estas flashcards y confirma que sean relevantes para Data Science y de calidad: {task_generation.expected_output}",
             agent=AGENTS["content_supervisor"],
@@ -171,17 +231,21 @@ async def create_flashcards(request: FlashcardRequest, user_id: int = Depends(ge
 
         crew = Crew(agents=[AGENTS["flashcard_generator"], AGENTS["content_supervisor"]], tasks=[task_generation, task_supervision], verbose=True)
         result = crew.kickoff()
-        flashcards = result.tasks_output[0].raw if result.tasks_output else "No se pudieron generar flashcards."
+        flashcards_raw = result.tasks_output[0].raw if result.tasks_output else "No se pudieron generar flashcards."
         supervision_feedback = result.tasks_output[1].raw if result.tasks_output else "No se pudo verificar la calidad."
         
         if "rechazado" in supervision_feedback.lower():
             raise HTTPException(status_code=400, detail="Las flashcards generadas no cumplen con los estándares de calidad.")
+        
+        # Parsear el contenido de las flashcards en formato estructurado
+        flashcards = parse_flashcards(flashcards_raw)
+
         # Guardar en la base de datos
         db = get_db_connection()
         try:
             with db.cursor() as cursor:
                 query = "INSERT INTO Flashcards (ID_User, Contenido) VALUES (%s, %s)"
-                cursor.execute(query, (user_id, json.dumps(flashcards)))
+                cursor.execute(query, (user_id, json.dumps(flashcards)))  # Guardamos el JSON de las flashcards
                 db.commit()
             return {"flashcards": flashcards}
         except pymysql.MySQLError as e:
@@ -310,4 +374,4 @@ async def analyze_performance(user_id: int = Depends(get_current_user)):
         raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8080)
