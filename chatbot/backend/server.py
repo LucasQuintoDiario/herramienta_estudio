@@ -66,7 +66,7 @@ async def chat(request: QueryRequest):
         db = get_db_connection()
         try:
             with db.cursor() as cursor:
-                query = "INSERT INTO consultas (pregunta, respuesta) VALUES (%s, %s, %s, %s)"
+                query = "INSERT INTO consultas (pregunta, respuesta) VALUES (%s, %s)"
                 cursor.execute(query, (json.dumps(request.message), response))
                 db.commit()
             return {"message": response}
