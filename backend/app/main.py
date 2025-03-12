@@ -430,7 +430,7 @@ async def technical_interview(request: TechnicalInterviewRequest, user_id: int =
         # Si hay suficientes mensajes, generar feedback
         if len(conversation_history) >= 10:
             evaluation_task = Task(
-                description=f"""Evalúa la conversación completa y genera un feedback detallado:
+                description=f"""Evalúa la conversación completa y genera un feedback detallado sobre el usuario entrevistado:
                 {conversation_history}""",
                 agent=AGENTS["evaluador_agent"],
                 expected_output="Feedback del entrevistador"

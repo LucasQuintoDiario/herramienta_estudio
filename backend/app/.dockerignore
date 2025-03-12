@@ -1,5 +1,4 @@
 # Ignorar archivos de entorno y bases de datos
-.env
 database/
 __pycache__/
 *.pyc
