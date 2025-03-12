@@ -3,6 +3,8 @@ let sessionToken = null;
 let currentQuestions = null;
 const API_BASE_URL = ''; // URL base de la API (vacía si está en el mismo dominio)
 
+// Añadir la nueva pestaña al array de tabs
+const tabs = ['test', 'flashcards', 'concepts', 'materials', 'performance', 'interview'];
 
 // Función para deshabilitar botones
 function disableButtons() {
@@ -196,7 +198,6 @@ function displayQuestions(questions) {
         questionsText = questions;
     } else if (Array.isArray(questions)) {
         // Si es un array, procesarlo según su estructura
-        questionsText += '<ul>';
         questions.forEach((question) => {
             if (typeof question === 'string') {
                 // Eliminar la numeración y el formato Markdown **...
@@ -204,11 +205,10 @@ function displayQuestions(questions) {
                 if (question.trim()) {
                     // Separar el título del cuerpo de la pregunta
                     const [title, ...body] = question.split('\n');
-                    questionsText += `<li><h3>${title}</h3>`;
+                    questionsText += `<h3>${title}</h3>`; // Solo el título
                     if (body.length > 0) {
-                        questionsText += `<p>${body.join('<br>')}</p>`;
+                        questionsText += `<p>${body.join('<br>')}</p>`; // Cuerpo de la pregunta
                     }
-                    questionsText += `</li>`;
                 }
             } else if (typeof question === 'object') {
                 // Si es un objeto, intentar acceder a la propiedad que contiene el texto
@@ -217,15 +217,13 @@ function displayQuestions(questions) {
                 if (cleanText.trim()) {
                     // Separar el título del cuerpo de la pregunta
                     const [title, ...body] = cleanText.split('\n');
-                    questionsText += `<li><h3>${title}</h3>`;
+                    questionsText += `<h3>${title}</h3>`; // Solo el título
                     if (body.length > 0) {
-                        questionsText += `<p>${body.join('<br>')}</p>`;
+                        questionsText += `<p>${body.join('<br>')}</p>`; // Cuerpo de la pregunta
                     }
-                    questionsText += `</li>`;
                 }
             }
         });
-        questionsText += '</ul>';
     } else if (typeof questions === 'object') {
         // Si es un objeto, convertirlo a string formateado
         questionsText = JSON.stringify(questions, null, 2);
@@ -240,6 +238,7 @@ function displayQuestions(questions) {
     // Para debug
     console.log('Preguntas recibidas:', questions);
 }
+
 
 
 // Enviar respuestas
@@ -666,5 +665,124 @@ async function loadPerformanceAnalysis() {
 // Añadir el event listener solo al hacer clic en el botón
 document.getElementById('generatePerformanceAnalysis').addEventListener('click', () => {
     loadPerformanceAnalysis();
+});
+
+let currentConversationId = null;
+let isFirstInteraction = true; // Para controlar la primera interacción
+
+
+// Función para formatear el feedback
+function formatFeedback(feedback) {
+    return feedback
+        .replace(/### (.*)/g, '<h3 class="mt-4">$1</h3>')
+        .replace(/#### (.*)/g, '<h4 class="mt-3">$1</h4>')
+        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+        .replace(/- (.*)/g, '<li>$1</li>')
+        .replace(/\n\n/g, '</p><p>')
+        .replace(/---/g, '<hr>');
+}
+
+function sendMessage() {
+    const input = document.getElementById('chat-input');
+    const message = input.value.trim();
+    if (!message) return;
+
+    // Mostrar mensaje del usuario
+    appendMessage('user', message);
+    input.value = '';
+
+    // Manejar la primera interacción
+    if (isFirstInteraction) {
+        const affirmativePattern = /^(sí|si|claro|por supuesto|vale|listo|ok|de acuerdo|seguro)[!.]?$/i;
+        
+        if (!affirmativePattern.test(message)) {
+            appendMessage('assistant', "¿Listo para comenzar la entrevista?");
+            return;
+        }
+
+        isFirstInteraction = false; // Desactivamos la detección de primera interacción
+    }
+
+    // Enviar mensaje al backend
+    fetch('/technical-interview', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${sessionToken}`
+        },
+        body: JSON.stringify({
+            message: message,
+            conversation_id: currentConversationId,
+            student_id: sessionToken
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            throw new Error(data.error);
+        }
+
+        currentConversationId = data.conversation_id;
+
+        // Si se recibió algún mensaje del entrevistador, lo mostramos
+        if (data.messages && data.messages.length > 0) {
+            const assistantMessage = data.messages[0].content;
+
+            // Mostrar mensaje de la entrevista si no es el de finalización
+            if (assistantMessage !== "La entrevista ha concluido. Estamos generando el feedback...") {
+                appendMessage('assistant', assistantMessage);
+            }
+        }
+
+        // Si la entrevista ha concluido, mostramos el mensaje de fin
+        if (data.messages && data.messages[0].content === "La entrevista ha concluido. Estamos generando el feedback...") {
+            appendMessage('assistant', "La entrevista ha concluido. Estamos generando el feedback...");
+        }
+
+        // Si ya tenemos el feedback, lo mostramos
+        if (data.feedback) {
+            const formattedFeedback = formatFeedback(data.feedback);  // Llamamos a la función para formatear el feedback
+            showFeedback(formattedFeedback);  // Mostrar el feedback formateado
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        appendMessage('assistant', 'Lo siento, ha ocurrido un error. Por favor, intenta de nuevo.');
+    });
+}
+
+
+
+
+document.addEventListener('DOMContentLoaded', function () {
+    const initialMessage = "¡Hola! Soy tu entrevistador virtual. ¿Listo para comenzar la entrevista?";
+    appendMessage('assistant', initialMessage);
+});
+
+
+function appendMessage(role, content) {
+    const messagesContainer = document.getElementById('chat-messages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${role}-message`;
+    messageDiv.textContent = content;
+    messagesContainer.appendChild(messageDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+// Función para mostrar el feedback en la interfaz
+function showFeedback(formattedFeedback) {
+    const feedbackContainer = document.getElementById('feedback-container');
+    const feedbackContent = document.getElementById('feedback-content');
+    
+    feedbackContent.innerHTML = formattedFeedback;  // Usar innerHTML para insertar el HTML formateado
+    feedbackContainer.style.display = 'block';
+}
+
+// Permitir enviar mensaje con Enter
+document.getElementById('chat-input').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+    }
 });
 

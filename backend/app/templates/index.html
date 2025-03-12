@@ -48,7 +48,7 @@
                         <span class="navbar-toggler-icon"></span>
                     </button>
                     <div class="collapse navbar-collapse" id="navbarNav">
-                        <ul class="navbar-nav w-100 justify-content-evenly"> <!-- Añadimos w-100 y justify-content-evenly -->
+                        <ul class="navbar-nav w-100 justify-content-evenly"> 
                             <li class="nav-item">
                                 <a class="nav-link text-white" href="#" data-page="test">Test</a>
                             </li>
@@ -64,6 +64,10 @@
                             <li class="nav-item">
                                 <a class="nav-link text-white" href="#" data-page="recommendations">Recursos adicionales</a>
                             </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-white" href="#" data-page="interview">Entrevista</a>
+                            </li>
+
                         </ul>
                         <button id="logoutBtn" class="btn btn-outline-danger ms-auto">Cerrar Sesión</button>
                     </div>
@@ -194,9 +198,22 @@
                     </div>
                 </div>
             </div>
+            <!-- sección de Entrevista -->
+            <div id="interviewSection" class="content-section d-none";">
+                <div class="chat-container">
+                    <div class="chat-messages" id="chat-messages"></div>
+                    <div class="chat-input-container">
+                        <textarea id="chat-input" placeholder="Escribe tu mensaje aquí..."></textarea>
+                        <button onclick="sendMessage()">Enviar</button>
+                    </div>
+                    <div id="feedback-container" class="feedback-container" style="display: none;">
+                        <h3>Feedback de la Entrevista</h3>
+                        <div id="feedback-content"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/static/js/main.js"></script>
 </body>
