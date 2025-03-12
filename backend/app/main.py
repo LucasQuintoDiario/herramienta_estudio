@@ -20,14 +20,14 @@ app.add_middleware(
 BASE_DIR = Path(__file__).resolve().parent.parent  # Sube un nivel desde backend
 
 # Montar archivos estáticos
-static_path = BASE_DIR / "backend" / "app" / "statics"  # Apunta a backend/app/statics
+static_path = BASE_DIR / "app" / "static"  # Apunta a backend/app/statics
 if not static_path.exists():
     raise RuntimeError(f"El directorio de archivos estáticos no existe: {static_path}")
 
 app.mount("/static", StaticFiles(directory=static_path), name="static")
 
 # Configurar templates
-templates = Jinja2Templates(directory=BASE_DIR / "backend" / "app" / "templates")
+templates = Jinja2Templates(directory=BASE_DIR / "app" / "templates")
 
 
 
