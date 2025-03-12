@@ -38,7 +38,7 @@ CONFIG = {
     "BBDD_PASSWORD": os.getenv("BBDD_PASSWORD"),
     "BBDD_HOST": os.getenv("BBDD_HOST"),
     "BBDD_PORT": int(os.getenv("BBDD_PORT", 3306)),  # Puerto por defecto 3306
-    "BBDD_NAME": os.getenv("BBDD_NAME",'users_registrados')  # Nombre de la BBDD
+    "BBDD_NAME": os.getenv("BBDD_NAME",'users_registrados'),  # Nombre de la BBDD
 }
 
 # Inicializar clientes
@@ -131,7 +131,7 @@ AGENTS = {
 
     "evaluador_agent":Agent(
     role='Evaluador de Competencias',
-    goal='Analizar las respuestas y proporcionar feedback detallado',
+    goal='Analizar las respuestas del candidato y proporcionar feedback detallado al candidato',
     backstory="""Eres un evaluador experto que analiza las respuestas de los candidatos
     para determinar su nivel de conocimiento, capacidad de resolución de problemas y
     áreas de mejora.""",
