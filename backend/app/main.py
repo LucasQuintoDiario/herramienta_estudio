@@ -1,10 +1,4 @@
 from utils import *
-from fastapi import FastAPI, HTTPException, Depends, Request
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
-from fastapi.middleware.cors import CORSMiddleware
-from pathlib import Path
 
 
 app = FastAPI(
@@ -22,18 +16,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Obtener la ruta base del proyecto
-BASE_DIR = Path(__file__).resolve().parent.parent.parent  # Sube dos niveles desde backend/app
+# Obtener la ruta base del proyecto (herramienta_estudio)
+BASE_DIR = Path(__file__).resolve().parent.parent  # Sube un nivel desde backend
 
 # Montar archivos estáticos
-static_path = BASE_DIR / "frontend" / "static"
+static_path = BASE_DIR / "backend" / "app" / "statics"  # Apunta a backend/app/statics
 if not static_path.exists():
     raise RuntimeError(f"El directorio de archivos estáticos no existe: {static_path}")
 
 app.mount("/static", StaticFiles(directory=static_path), name="static")
 
 # Configurar templates
-templates = Jinja2Templates(directory=BASE_DIR / "frontend" / "templates")
+templates = Jinja2Templates(directory=BASE_DIR / "backend" / "app" / "templates")
+
 
 
 # Ruta para servir la página principal
@@ -151,11 +146,21 @@ async def evaluate_answers(request: AnswerEvaluationRequest, req: Request, user_
             raise HTTPException(status_code=404, detail="Preguntas no encontradas o sesión expirada")
         questions = json.loads(questions_json)
         
-        # Evaluar las respuestas
         task = Task(
             description=f"Evalúa las respuestas: {request.student_answers} para las preguntas: {questions}",
             agent=AGENTS["test_evaluator"],
-            expected_output="Informe de evaluación, análisis de errores y retroalimentación de forma resumida para que no haya excesivo texto, pero sea claro sobre aspectos a mejorar y como."
+            expected_output="""
+                El informe debe incluir un resumen conciso de las fortalezas y debilidades que tengo, con una clara orientación sobre cómo mejorar. 
+                Evita explicaciones largas y usa un lenguaje accesible y directo. El informe debe ser organizado de la siguiente forma:
+                
+                1. **Resumen General**: Un resumen corto de cómo fue mi desempeño general.
+                2. **Áreas de Mejora**: Identificar las áreas específicas donde cometí errores o tengo dificultades.
+                3. **Sugerencias de Mejora**: Propuestas claras y concretas sobre cómo puedo mejorar en esas áreas.
+                4. **Refuerzos Positivos**: Asegúrate de incluir lo que hice bien para mantener mi motivación.
+                
+                Mantén el informe breve y enfocado, sin exceso de texto pero siendo lo suficientemente claro sobre qué necesito mejorar y cómo hacerlo.
+                El informe debe estar redactado en segunda persona para  que sea  personal hacia mi.
+            """
         )
         crew = Crew(agents=[AGENTS["test_evaluator"]], tasks=[task], verbose=True)
         result = crew.kickoff()
@@ -352,6 +357,9 @@ async def analyze_performance(user_id: int = Depends(get_current_user)):
                 query = "SELECT Feedback FROM Test WHERE ID_User = %s"
                 cursor.execute(query, (user_id,))
                 results = cursor.fetchall()
+                query_nombre = "SELECT nombre FROM Users WHERE ID_User = %s"
+                cursor.execute(query_nombre, (user_id,))
+                nombre = cursor.fetchone()
                 if not results:
                     raise HTTPException(status_code=404, detail="No hay suficiente información para generar el informe")
                 feedback_list = [result["Feedback"] for result in results]
@@ -362,9 +370,9 @@ async def analyze_performance(user_id: int = Depends(get_current_user)):
 
         # Analizar el desempeño con el agente
         task = Task(
-            description=f"Analiza el desempeño basado en: {feedback_list}",
+            description=f"Analiza el desempeño de {nombre} basado en: {feedback_list}",
             agent=AGENTS["performance_analyzer"],
-            expected_output="Informe con análisis de patrones de error basado en  el conjunto de feedbacks  proporcionados por el agente llamado evaluate-answers y recomendaciones estratégicas para mejorar el desempeño del estudiante, la respuesta debe unica y ser diferente a la respuesta proporcionada por el agente llamado evaluate-answers."
+            expected_output=f"Un informe personalizado para {nombre} escrito en segunda persona (usando 'tú'). Identifica tus patrones de error basados en los feedbacks proporcionados por el agente 'evaluate-answers', y ofrécete recomendaciones prácticas y únicas para que mejores tu desempeño. Asegúrate de que el tono sea motivacional y diferente al análisis del agente 'evaluate-answers'."
         )
         crew = Crew(agents=[AGENTS["performance_analyzer"]], tasks=[task], verbose=True)
         result = crew.kickoff()
@@ -372,6 +380,109 @@ async def analyze_performance(user_id: int = Depends(get_current_user)):
         return {"recommendations": recommendations}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/technical-interview")
+async def technical_interview(request: TechnicalInterviewRequest, user_id: int = Depends(get_current_user)):
+    try:
+        conversation_id = request.conversation_id or str(uuid.uuid4())
+
+        # Obtener historial o crear uno nuevo
+        conversation_history = redis_client.get(f"interview:{conversation_id}")
+        conversation_history = json.loads(conversation_history) if conversation_history else []
+
+        # Manejo especial para la primera interacción
+        affirmative_pattern = re.compile(r"^(sí|si|claro|por supuesto|vale|listo|ok|de acuerdo|seguro)[!.]?$", re.IGNORECASE)
+
+        # Si es la primera interacción y el mensaje es afirmativo
+        if len(conversation_history) == 0 and affirmative_pattern.match(request.message):
+            conversation_history.append({"role": "user", "content": request.message})
+
+            # Crear la primera pregunta del entrevistador
+            first_question = "¡Genial! Empecemos con la primera pregunta. ¿Puedes contarme un poco sobre ti?"
+
+            assistant_message = {"role": "assistant", "content": first_question}
+            conversation_history.append(assistant_message)
+
+            # Guardar en Redis
+            redis_client.setex(f"interview:{conversation_id}", timedelta(hours=24), json.dumps(conversation_history))
+
+            return TechnicalInterviewResponse(
+                messages=[assistant_message],
+                conversation_id=conversation_id
+            )
+
+        # Agregar mensaje al historial si no es la primera interacción
+        new_message = {"role": "user", "content": request.message}
+        conversation_history.append(new_message)
+
+        # Crear la tarea del entrevistador
+        interview_task = Task(
+            description=f"""Analiza el siguiente mensaje del candidato y responde apropiadamente de manera amigable y cercana:
+            '{request.message}'
+
+            Historia de la conversación:
+            {conversation_history}
+            Las respuestas deben ser cortas y que incluyan una nueva pregunta para que el candidato pueda responder.""",
+            agent=AGENTS["entrevistador_agent"],
+            expected_output="Respuesta del entrevistador"
+        )
+
+        # Si hay suficientes mensajes, generar feedback
+        if len(conversation_history) >= 10:
+            evaluation_task = Task(
+                description=f"""Evalúa la conversación completa y genera un feedback detallado:
+                {conversation_history}""",
+                agent=AGENTS["evaluador_agent"],
+                expected_output="Feedback del entrevistador"
+            )
+
+            crew = Crew(
+                agents=[AGENTS["entrevistador_agent"], AGENTS["evaluador_agent"]],
+                tasks=[interview_task, evaluation_task],
+                process=Process.sequential
+            )
+            result = crew.kickoff()
+
+            response = result.tasks_output[0].raw if result.tasks_output else "No se pudo obtener respuesta."
+            feedback = result.tasks_output[1].raw if result.tasks_output else None
+
+            assistant_message = {"role": "assistant", "content": "Muchas gracias  por participar en el proceso, la entrevista ha finalizado. Más abajo encontrarás el feedback!"}
+            conversation_history.append(assistant_message)
+
+            # Guardar en Redis
+            redis_client.setex(f"interview:{conversation_id}", timedelta(hours=24), json.dumps(conversation_history))
+
+            return TechnicalInterviewResponse(
+                messages=[assistant_message],
+                feedback=feedback,
+                conversation_id=conversation_id
+            )
+
+        # Si no hay suficientes mensajes, solo responder
+        crew = Crew(
+            agents=[AGENTS["entrevistador_agent"]],
+            tasks=[interview_task],
+            process=Process.sequential
+        )
+        result = crew.kickoff()
+
+        response = result.tasks_output[0].raw if result.tasks_output else "No se pudo obtener respuesta."
+
+        assistant_message = {"role": "assistant", "content": response}
+        conversation_history.append(assistant_message)
+
+        # Guardar en Redis
+        redis_client.setex(f"interview:{conversation_id}", timedelta(hours=24), json.dumps(conversation_history))
+
+        return TechnicalInterviewResponse(
+            messages=[assistant_message],
+            conversation_id=conversation_id
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8080)

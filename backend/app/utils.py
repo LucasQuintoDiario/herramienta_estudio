@@ -4,16 +4,23 @@ import uvicorn
 from pydantic import BaseModel
 from typing import List, Dict, Optional
 from crewai import Task, Crew, Agent
-from opensearchpy import OpenSearch
-import cohere
 import logging
 import pymysql
 import redis
 import uuid
 import json
-from sentence_transformers import SentenceTransformer
 from dotenv import load_dotenv
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi import FastAPI, HTTPException, Depends, Request
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
+from typing import Optional, List
+from datetime import timedelta
+from crewai.process import Process
+import re
 
 
 # Cargar variables de entorno
@@ -36,12 +43,7 @@ CONFIG = {
 
 # Inicializar clientes
 redis_client = redis.Redis(host='localhost', port=6379, db=0, decode_responses=True)
-cohere_client = cohere.Client(CONFIG["COHERE_API_KEY"])
-opensearch_client = OpenSearch(
-    hosts=[CONFIG["OPENSEARCH_HOST"]],
-    http_auth=(CONFIG["OPENSEARCH_USERNAME"], CONFIG["OPENSEARCH_PASSWORD"])
-)
-embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -91,13 +93,15 @@ AGENTS = {
         model="gpt-3.5-turbo"
     ),
 
+
     "performance_analyzer": Agent(
         role="Performance Analyzer",
-        goal="Identificar patrones en los errores de los estudiantes y proporcionar estrategias de mejora basadas en datos.",
-        backstory="Especialista en análisis de datos educativos, con experiencia en detectar tendencias de desempeño y optimizar estrategias de aprendizaje.",
+        goal="Analizar tus patrones de errores y ofrecerte estrategias personalizadas para que mejores tu aprendizaje basándome en datos. Mi misión es evaluar cómo te está yendo y ayudarte a brillar en tus puntos fuertes mientras trabajamos juntos en tus áreas de mejora.",
+        backstory="Soy un especialista en análisis de datos educativos, con experiencia en detectar cómo aprenden los estudiantes como tú y en crear planes para que alcances tu máximo potencial. Me apasiona entender tus tendencias de desempeño y darte herramientas prácticas para que mejores cada día.",
         verbose=True,
         model="gpt-3.5-turbo"
     ),
+
 
     "tutor_personalized": Agent(
         role="Personalized Tutor",
@@ -113,8 +117,30 @@ AGENTS = {
     backstory="Experto en Data Science y educación. Se asegura de que los materiales generados sean relevantes, precisos y útiles.",
     verbose=True,
     model="gpt-3.5-turbo"
-    )
+    ),
+   "entrevistador_agent": Agent(
+    role='Entrevistador de Recursos Humanos Senior experto en evaluar soft skills',
+    goal='Evaluar las soft skills del candidato',
+    backstory="""Eres un entrevistador senior con amplia experiencia en Recursos Humanos.
+    Tu objetivo es evaluar las soft skills del candidato a través de preguntas
+    relevantes y casos prácticos.""",
+    verbose=True,
+    allow_delegation=False,
+    llm_model="gpt-3.5-turbo",
+    ),
+
+    "evaluador_agent":Agent(
+    role='Evaluador de Competencias',
+    goal='Analizar las respuestas y proporcionar feedback detallado',
+    backstory="""Eres un evaluador experto que analiza las respuestas de los candidatos
+    para determinar su nivel de conocimiento, capacidad de resolución de problemas y
+    áreas de mejora.""",
+    verbose=True,
+    allow_delegation=False,
+    llm_model="gpt-3.5-turbo"
+)
 }
+
 
 
 # Modelos Pydantic (actualizados)
@@ -142,6 +168,18 @@ class RecommendationsRequest(BaseModel):
 
 class PerformanceAnalysisRequest(BaseModel):
     student_id: str
+
+# Modelos adicionales para la entrevista técnica
+class TechnicalInterviewRequest(BaseModel):
+    message: str
+    conversation_id: Optional[str] = None
+
+class TechnicalInterviewResponse(BaseModel):
+    messages: List[dict]
+    feedback: Optional[str] = None
+    conversation_id: str
+
+
 
 # Función para conectar a la base de datos
 def get_db_connection():
