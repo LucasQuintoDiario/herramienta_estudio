@@ -1,0 +1,12 @@
+# Ignorar archivos de entorno y bases de datos
+database/
+__pycache__/
+*.pyc
+*.pyo
+
+# Evitar archivos innecesarios
+.DS_Store
+.vscode/
+.idea/
+.git/
+
