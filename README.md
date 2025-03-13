@@ -10,26 +10,21 @@ Este proyecto consta de **dos aplicaciones principales**:
 1. **Chatbot Informativo** al que hemos nombrado **Bridgy**, en honor a la escuela🎓
    - Proporciona información sobre los distintos bootcamps de The Bridge, incluyendo:
      - Modalidades de estudio
-     - Precios
      - Localidades y campus disponibles
      - Contenidos de cada bootcamp
      - Información de contacto y proceso de inscripción
-o
-   - Utiliza técnicas avanzadas de RAG (Retrieval-Augmented Generation) con datos embebidos en **Pinecone** y consultas a fuentes oficiales de The Bridge.
-    - ¿? Proporciona información sobre los bootcamps, precios, sedes, modalidades y otros detalles de interés.¿?
+
 
 2. **Tutor Virtual: Una Plataforma de Aprendizaje para Estudiantes**
 **Tutor Virtual: Una Plataforma para Estudiantes** 📊
    - Aplicación donde los estudiantes registrados pueden acceder a herramientas avanzadas de apoyo en su formación en **Data Science**:
-     - **📜 Generador de Tests:** Crea tests automáticos sobre cualquier tema de DS.
-     - **📝 Evaluador de Tests:** Corrige respuestas y proporciona feedback detallado.
-     - **📚 Explicador de Conceptos:** Proporciona explicaciones detalladas sobre cualquier tema de DS.
-     - **🎤 Simulador de Entrevistas:** Role-playing con un "headhunter" ficticio.
-     - **🧐 Evaluador de Entrevistas:** Analiza el desempeño y da recomendaciones de mejora al alumno.
-     - **📊 Evaluador de Rendimiento:** Analiza tendencias en los tests realizados por el usuario.
+     - **📜 Generador y Evaluador de Tests:** Crea tests automáticos sobre cualquier tema de DS y corrige las respuestas proporcionando feedback detallado.
      - **📖 Creador de Flashcards:** Genera tarjetas de memorización sobre cualquier tema.
+     - **📚 Explicador de Conceptos:** Proporciona explicaciones detalladas sobre cualquier tema de DS.
+     - **📊 Evaluador de Rendimiento:** Analiza tendencias en los tests realizados por el usuario.
      - **📚 Recomendador de Materiales:** Sugiere libros y recursos en línea para aprender más.   
-   
+     - **🎤 Simulador y Evaluador de Entrevistas:** Role-playing con un "headhunter" ficticio que analiza el desempeño y da recomendaciones de mejora al alumno.
+
 ## 🛠️ Tecnologías Utilizadas
 
 Este proyecto ha sido desarrollado con las siguientes herramientas y tecnologías:
@@ -37,50 +32,48 @@ Este proyecto ha sido desarrollado con las siguientes herramientas y tecnología
 - **Backend:**
   - Python (FastAPI, NLTK, OpenAI, CrewAI, Cohere)
   - OpenSearch & Pinecone (Vector DB para RAG)
-  - Google Cloud & AWS (Infraestructura y almacenamiento)
   - MySQL (Gestión de usuarios y datos)
-  - Docker (Contenedores para despliegue eficiente)
 
 - **Frontend:**
   - React (Interfaz de usuario)
   - CSS, HTML y JavaScript (Diseño y funcionalidad de la plataforma)
 
-o   
-- **Lenguaje principal**: Python 🐍
-- **Frameworks & Librerías**:
-  - FastAPI (API backend)
-  - NLTK (Procesamiento de Lenguaje Natural)
-  - Cohere y OpenAI (Modelos de lenguaje)
-  - CrewAI (Agentes inteligentes)
-  - Pinecone y OpenSearch (Búsqueda y almacenamiento de embeddings)
-  - MySQL (Base de datos para almacenamiento de usuarios y tests)
-  - React, CSS, HTML y JavaScript (Frontend de la plataforma)
 - **Infraestructura & Herramientas**:
   - Docker 🐳 (Contenedores para despliegue)
   - AWS y Google Cloud (Hosting y procesamiento)
 
 ## Estructura del Proyecto 📂
-```
-📦 herramienta_estudio
-├── chatbot   
-│   ├── RAG (Sistema de Recuperación Aumentada con Generación)   
-│   │   ├── data (PDFs y documentos de la escuela embebidos)   
-│   │   ├── rag_system.py (Motor de búsqueda e IA)   
-│   │   ├── rag_system_clean.py (Optimización del pipeline de RAG)   
-│   ├── backend   
-│   │   ├── server.py (API del chatbot)   
-│   ├── public (Archivos estáticos)   
-│   ├── src (Frontend basado en React)    
-├── backend (Tutor IA y gestión de usuarios)
-│   ├── app
-│   │   ├── database (Gestión de base de datos SQL)
-│   │   ├── static (Recursos web)
-│   │   ├── templates (Frontend básico para administración)
-│   │   ├── main.py (Servidor FastAPI)
-│   │   ├── utils.py (Funciones auxiliares)
-│   ├── Dockerfile
-│   ├── requirements.txt
-└── README.md
+
+```bash
+herramienta_estudio/       # Directorio raíz del proyecto
+│──  📂 chatbot/               # Módulo relacionado con el chatbot de la herramienta
+│    │── backend/               # Backend principal del sistema
+│    │   │── Dockerfile         # Configuración de Docker para el backend
+│    │   │── get-pip.py         # Script para instalar pip
+│    │   │── Rag_sistem.py      # Implementación del sistema RAG (Retrieval-Augmented Generation)
+│    │   │── requirements.txt   # Dependencias del backend
+│    │   │── server.py          # Servidor principal del backend
+│    ├── public/            # Archivos públicos del backend
+│    ├── RAG/               # Implementación del sistema RAG
+│    │   ├── data/          # Almacenamiento de datos procesados
+│    │   ├── rag_system_pinecone.py  # Integración con Pinecone para almacenamiento vectorial
+│    │── src/                   # Código fuente del frontend
+│    │   ├── components/Contenido/  # Componentes relacionados con el contenido
+│    │   │   ├── Contenido.js   # Componente principal de contenido
+│    │   ├── config/            # Configuración del frontend
+│──  📂 database/              # Módulo de base de datos
+│    ├── bdd.ipynb          # Notebook para exploración de datos
+│    ├── create_db.py       # Script para creación de la base de datos
+│──  📂 tutor_virtual/         # Módulo del tutor virtual basado en IA
+│    ├── static/            # Archivos estáticos (CSS, JS)
+│    ├── templates/         # Plantillas HTML
+│    ├── .dockerignore      # Archivos ignorados por Docker
+│    ├── Dockerfile         # Configuración de Docker para el tutor virtual
+│    ├── main.py            # Servidor principal del tutor virtual
+│    ├── requirements.txt   # Dependencias del tutor virtual
+│    ├── utils.py           # Funciones auxiliares
+│    ├── .gitignore         # Archivos ignorados por Git
+│── README.md              # Documentación del proyecto
 ```
 ## 📌 Instalación y Ejecución
 
@@ -104,13 +97,25 @@ INDEX_NAME=desafiofinal
 ```
 
 ### 3️⃣ Construcción y Ejecución con Docker
+#### Tutor virtual
 ```bash
-docker-compose up --build
+cd tutor_virtual
+docker build -t tutor_virtual .
+docker run -d -p 8080:8080 --env-file .env --name backend tutor_virtual
+
 ```
 
+#### Chatbot
+```bash
+cd chatbot
+docker build -t chatbot .
+docker run -d -p 8080:8080 --env-file .env --name chatbot
+
+```
+
+
 ### 4️⃣ Acceder a la Plataforma
-- **Chatbot Bridgy:** `http://localhost:8080/`??
-- **Tutor Virtual:** `http://localhost:3000`??
+-  `http://localhost:8080/`
 
 ## Uso 🚀
 
@@ -126,10 +131,5 @@ Este proyecto ha sido desarrollado por:
 - **Lucas Herranz**
 - **Daniel Masana**
 - **Juan Zubiaga**
-
-## 📬 Contacto
-Para cualquier consulta, sugerencia o colaboración, puedes abrir un **issue** en este repositorio o ponerte en contacto con el equipo de desarrollo.
-
-📍 Repositorio: [GitHub - Herramienta de Estudio](https://github.com/LucasQuintoDiario/herramienta_estudio)
 
 ¡Gracias por tu interés en este proyecto! 🚀

@@ -1,7 +1,6 @@
 fastapi==0.109.2
 uvicorn==0.27.1
 python-dotenv==1.0.1
-opensearch-py==2.4.2
 cohere==4.47
 sentence-transformers==2.5.1
 pydantic==2.6.1
@@ -17,3 +16,5 @@ nltk==3.8.1
 requests-aws4auth==1.2.3
 pinecone==6.0.1
 PyPDF2==3.0.1 
+pymysql==1.1.0
+scikit-learn==1.6.1
