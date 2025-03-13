@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Bridge | Tutor Virtual</title>
+    <link rel="icon" href="/static/img/favicon.jpeg" type="image/x-icon"> <!-- Aquí añades tu favicon -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="bg-light">
+    <div class="container">
+        <!-- Spinner de carga (centrado y oculto por defecto) -->
+        <div id="loadingSpinner" class="d-none text-center my-3">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando...</span>
+            </div>
+        </div>
+        <!-- Login Form -->
+        <div id="loginForm" class="auth-form">
+            <header class="header">
+                <img src="/static/img/logo.png" alt="Logo de CrewAI" class="logo">
+            </header>
+            <h2 class="text-center mb-4">"  "</h2>
+            <h5 class="text-center mb-4">Inicio de sesión</h5>
+            <form id="login-form" class="needs-validation" novalidate>
+                <div class="mb-3">
+                    <label for="username" class="form-label">Usuario</label>
+                    <input type="text" class="form-control" id="username" required>
+                </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label">Contraseña</label>
+                    <input type="password" class="form-control" id="password" required>
+                </div>
+                <button type="submit" class="btn btn-red">Iniciar Sesión</button>
+            </form>
+        </div>
+
+
+        <!-- Main Content (hidden initially) -->
+        <div id="mainContent" class="d-none">
+            <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+                <div class="container-fluid">
+                    <a class="navbar-brand" href="#">
+                        <img src="/static/img/logo.png" alt="Logo" height="40">
+                    </a>
+                    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="collapse navbar-collapse" id="navbarNav">
+                        <ul class="navbar-nav w-100 justify-content-evenly"> 
+                            <li class="nav-item">
+                                <a class="nav-link text-white" href="#" data-page="test">Test</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-white" href="#" data-page="flashcards">Flashcards</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-white" href="#" data-page="concepts">WikiBridge</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-white" href="#" data-page="performance">Evaluación</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-white" href="#" data-page="recommendations">Recursos adicionales</a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link text-white" href="#" data-page="interview">Entrevista</a>
+                            </li>
+
+                        </ul>
+                        <button id="logoutBtn" class="btn btn-outline-danger ms-auto">Cerrar Sesión</button>
+                    </div>
+                </div>
+            </nav>
+            <!-- Test Section -->
+            <div id="testSection" class="content-section d-none">
+                <h3 class="text-white">¿Sobre qué quieres examinarte?</h3>
+                <div class="card mb-4 custom-card">
+                    <div class="card-body">
+                        <form id="testForm">
+                            <div class="mb-3">
+                                <label for="topic" class="form-label text-white">Tema</label>
+                                <input type="text" class="form-control" id="topic" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="numQuestions" class="form-label text-white">Número de Preguntas</label>
+                                <input type="number" class="form-control" id="numQuestions" value="5" min="1" max="10">
+                            </div>
+                            <button type="submit" class="btn btn-red">Generar Preguntas</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Preguntas y Respuestas -->
+                <div id="questionsContainer" class="d-none">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card mb-4 custom-card">
+                                <div class="card-body">
+                                    <h4 class="text-white">Preguntas Generadas</h4>
+                                    <div id="questionsText" class="questions-container form-control" style="height: auto; min-height: 200px; overflow-y: auto; resize: none;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12">
+                            <div class="card mb-4 custom-card">
+                                <div class="card-body">
+                                    <h4 class="text-white">Tus Respuestas</h4>
+                                    <form id="answersForm">
+                                        <textarea id="answersText" class="form-control" rows="10" required placeholder=""></textarea>
+                                        <button type="submit" class="btn btn-red mt-3">Enviar Respuestas</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Feedback Container -->
+                <div id="feedbackContainer" class="d-none">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card mb-4 custom-card">
+                                <div class="card-body">
+                                    <h4 class="text-white">Evaluación</h4>
+                                    <div id="feedbackContent" class="questions-container form-control" style="height: auto; min-height: 200px; overflow-y: auto; resize: none;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flashcards Section -->
+            <div id="flashcardsSection" class="content-section d-none">
+                <h3 class="text-white">¿Sobre qué tema quieres aprender?</h3>
+                <div class="card mb-4 custom-card">
+                    <div class="card-body">
+                        <form id="flashcardForm">
+                            <div class="mb-3">
+                                <label for="flashcardTopic" class="form-label">Tema</label>
+                                <input type="text" class="form-control" id="flashcardTopic" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="numFlashcards" class="form-label">Número de Flashcards</label>
+                                <input type="number" class="form-control" id="numFlashcards" value="10" min="1" max="20">
+                            </div>
+                            <button type="submit" class="btn btn-red">Generar Flashcards</button>
+                        </form>
+                        <div id="flashcardsContainer" class="mt-4"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Concepts Section -->
+            <div id="conceptsSection" class="content-section d-none">
+                <h3 class="text-white">¿Qué concepto quieres entender mejor?</h3>
+                <div class="card mb-4 custom-card">
+                    <div class="card-body">
+                        <form id="conceptForm">
+                            <div class="mb-3">
+                                <label for="concept" class="form-label">P. ej: "Machine Learning"</label>
+                                <input type="text" class="form-control" id="concept" required>
+                            </div>
+                            <button type="submit" class="btn btn-red">Obtener Explicación</button>
+                        </form>
+                        <div id="conceptExplanation" class="mt-4 custom-explanation d-none"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Section -->
+            <div id="performanceSection" class="content-section d-none">
+                <h3 class="text-white">Analiza tu Rendimiento</h3>
+                <div class="card mb-4 custom-card">
+                    <div class="card-body">
+                        <button id="generatePerformanceAnalysis" class="btn btn-red">Generar Análisis</button>
+                        <div id="performanceAnalysis" class="mt-4"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommendations Section -->
+            <div id="recommendationsSection" class="content-section d-none">
+                <h3 class="text-white">¿Qué tema quieres explorar?</h3>
+                <div class="card mb-4 custom-card">
+                    <div class="card-body">
+                        <form id="recommendationsForm">
+                            <div class="mb-3">
+                                <label for="recommendationTopic" class="form-label">Tema</label>
+                                <input type="text" class="form-control" id="recommendationTopic" required>
+                            </div>
+                            <button type="submit" class="btn btn-red">Obtener Recomendaciones</button>
+                        </form>
+                        <div id="recommendationsContainer" class="mt-4 d-none"></div>
+                    </div>
+                </div>
+            </div>
+            <!-- sección de Entrevista -->
+            <div id="interviewSection" class="content-section d-none";>
+                <div class="chat-container">
+                    <div class="chat-messages" id="chat-messages"></div>
+                    <div class="chat-input-container">
+                        <textarea id="chat-input" placeholder="Escribe tu mensaje aquí..."></textarea>
+                        <button onclick="sendMessage()">Enviar</button>
+                    </div>
+                    <div id="feedback-container" class="feedback-container" style="display: none;">
+                        <h3>Feedback de la Entrevista</h3>
+                        <div id="feedback-content"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/main.js"></script>
+</body>
+</html>

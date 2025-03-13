@@ -1,0 +1,11 @@
+fastapi==0.115.8
+uvicorn==0.34.0
+crewai==0.102.0
+openai==1.65.4
+python-dotenv==1.0.1
+pydantic==2.10.6
+langchain==0.3.19
+python-multipart==0.0.20
+redis==5.2.1
+PyMySQL==1.1.1
+jinja2==3.1.2

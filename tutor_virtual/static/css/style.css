@@ -1,0 +1,467 @@
+/* Contenedor de login (ajustado para que no se solape con la cabecera) */
+/* Fondo general con imagen */
+body {
+    background: url('/static/img/pexels-ekaterina-bolovtsova-6372813.jpg') no-repeat center center fixed;
+    background-size: cover;
+    background-attachment: fixed;
+}
+
+/* Cabecera fija con logo */
+.header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 80px;
+    background: rgba(0, 0, 0, 0.9); /* Fondo negro semitransparente */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+/* Logo dentro de la cabecera */
+.header img {
+    max-height: 60px; /* Ajusta el tamaño del logo */
+}
+/* Ajustar el spinner de Bootstrap */
+#loadingSpinner .spinner-border {
+    width: 50px;  /* Tamaño del spinner */
+    height: 50px;
+    border-width: 5px; /* Grosor del borde */
+    border-color: rgba(255, 0, 0, 0.3); /* Bordes semitransparentes */
+    border-top-color: red; /* Solo el borde superior es rojo */
+    border-radius: 50%; /* Asegurar que es un círculo */
+    animation: spin 1s linear infinite; /* Aplicar la animación */
+}
+
+/* Definir la animación de giro */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Centrar el spinner en la pantalla */
+#loadingSpinner {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1000; /* Asegura que esté por encima de otros elementos */
+}
+
+
+.auth-form {
+    max-width: 500px;
+    margin: 120px auto 0; /* Espacio desde la cabecera */
+    padding: 25px;
+    background: rgba(0, 0, 0, 0.6);
+    border-radius: 20px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    color: white;
+    backdrop-filter: blur(10px);
+}
+
+/* Forzar fondo completamente negro para la barra de navegación */
+.navbar.bg-dark {
+    background-color: #000 !important; /* Fondo negro */
+}
+
+/* Efecto hover para los enlaces */
+.navbar .nav-link:hover {
+    color: #ccc !important; /* Gris claro en hover */
+}
+
+/* Asegurarse de que el icono de menú sea blanco en móviles */
+.navbar-toggler-icon {
+    background-color: #fff !important; /* Icono blanco */
+}
+
+/* Asegurar que el navbar-nav se comporte correctamente */
+.navbar-nav {
+    display: flex;
+    align-items: center; /* Centra verticalmente los elementos */
+}
+
+/* Opcional: Ajustar el botón de cerrar sesión */
+.btn-outline-danger {
+    border-color: #dc3545; /* Asegura que el borde sea rojo */
+    color: #dc3545; /* Texto rojo */
+}
+
+.btn-outline-danger:hover {
+    background-color: #dc3545; /* Fondo rojo al pasar el mouse */
+    color: #fff; /* Texto blanco al pasar el mouse */
+}
+
+
+/* Estilo para el fondo negro con algo de transparencia y efecto de desenfoque */
+.custom-card {
+
+    background-color: rgba(0, 0, 0, 0.7); /* Fondo negro con 70% de opacidad */
+    color: white; /* Color de texto blanco */
+    backdrop-filter: blur(10px); /* Aplica el efecto de desenfoque al fondo */
+}
+
+/* Para los títulos */
+.custom-card h4,
+.custom-card h3,
+.custom-card label {
+    color: white; /* Aseguramos que los títulos y etiquetas sean blancos */
+}
+
+/* Si necesitas que el área de texto tenga un color específico */
+.custom-card .form-control {
+    background-color: rgba(0, 0, 0, 0.5); /* Fondo oscuro para los inputs y textareas */
+    color: white; /* Texto blanco en los inputs */
+    border-color: white; /* Borde blanco */
+}
+
+/* Cambiar color de texto dentro de la tarjeta de explicación */
+.custom-card .card-title, 
+.custom-card .card-text {
+    color: white !important; /* Asegura que el texto sea blanco */
+}
+
+/* Estilos para cuando el formulario está en foco */
+.custom-card .form-control:focus {
+    background-color: rgba(0, 0, 0, 0.6); /* Fondo oscuro al hacer foco */
+    border-color: rgba(255, 0, 0, 0.9); /* Borde rojo en el foco */
+}
+
+/* Estilo general de las secciones */
+.content-section {
+    margin-bottom: 30px;
+}
+
+/* Estilo de la tarjeta */
+.card {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05); /* Sombra sutil en las tarjetas */
+}
+
+
+
+.text-white {
+    color: white;
+}
+
+/* Estilos para las flashcards */
+.flashcard {
+    perspective: 1000px;
+    margin-bottom: 20px;
+}
+
+.flashcard-inner {
+    position: relative;
+    width: 100%;
+    height: 200px;
+    text-align: center;
+    transition: transform 0.6s;
+    transform-style: preserve-3d;
+    cursor: pointer;
+}
+
+.flashcard.flipped .flashcard-inner {
+    transform: rotateY(180deg);
+}
+
+.flashcard-front, .flashcard-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    border-radius: 8px;
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.flashcard-back {
+    transform: rotateY(180deg);
+    background: #f8f9fa;
+}
+
+/* Estilos para las preguntas del test */
+.question-item {
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+}
+
+.questions-container {
+    font-size: 14px; /* Tamaño de la fuente */
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+    color: #333;
+}
+
+.questions-container h3 {
+    font-size: 1.2em; /* Tamaño relativo para los títulos */
+    margin-bottom: 10px;
+}
+
+.questions-container p {
+    font-size: 1em; /* Tamaño relativo para los párrafos */
+    margin-bottom: 20px;
+}
+
+/* Estilo para la explicación del concepto */
+.custom-explanation {
+    background-color: rgba(0, 0, 0, 0.6); /* Fondo oscuro semi-transparente */
+    color: black; /* Texto negro */
+    padding: 15px; /* Espaciado interno */
+    border: 1px solid rgba(255, 255, 255, 0.9); /* Borde semi-transparente */
+    border-radius: 10px; /* Bordes redondeados */
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3); /* Sombra suave */
+    backdrop-filter: blur(5px); /* Efecto de desenfoque */
+}
+/* Estilos para listas y formato de texto */
+.custom-explanation ol {
+    padding-left: 20px;
+    list-style-type: decimal;
+}
+
+.custom-explanation li {
+    margin-bottom: 5px;
+}
+
+.custom-explanation strong {
+    font-weight: bold;
+}
+
+.custom-explanation em {
+    font-style: italic;
+}
+
+/* Estilo para los botones rojos */
+.btn-red {
+    background-color: #dc3545; /* Rojo */
+    border-color: #dc3545; /* Borde rojo */
+    color: white; /* Texto blanco */
+}
+
+/* Cambiar el color al pasar el ratón */
+.btn-red:hover {
+    background-color: #c82333; /* Rojo más oscuro */
+    border-color: #bd2130; /* Borde más oscuro */
+    color: white; /* Texto blanco */
+}
+
+/* Estilos para las flashcards */
+.flashcard {
+    perspective: 1000px;
+    margin-bottom: 20px;
+}
+
+.flashcard-inner {
+    position: relative;
+    width: 100%;
+    height: 150px;
+    text-align: center;
+    transition: transform 0.6s;
+    transform-style: preserve-3d;
+    cursor: pointer;
+}
+
+.flashcard.flipped .flashcard-inner {
+    transform: rotateY(180deg);
+}
+
+.flashcard-front, .flashcard-back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backface-visibility: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.1); /* Fondo semi-transparente */
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.flashcard-back {
+    transform: rotateY(180deg);
+    background: rgba(255, 255, 255, 0.2); /* Fondo semi-transparente para la parte trasera */
+}
+
+/* Estilos para el texto dentro de las flashcards */
+.flashcard h5, .flashcard p {
+    color: white; /* Texto blanco */
+    margin: 0;
+}
+
+/* Cambiar el color al hacer clic */
+.btn-red:active {
+    background-color: #bd2130; /* Rojo más oscuro */
+    border-color: #b21f2d; /* Borde más oscuro */
+    color: white; /* Texto blanco */
+}
+
+/* Estilos para el contenedor de feedback */
+#feedbackContent {
+    background-color: rgba(0, 0, 0, 0.7); /* Fondo oscuro semi-transparente */
+    color: white; /* Texto blanco */
+    padding: 10px; /* Espaciado interno */
+    border: 1px solid rgba(255, 255, 255, 0.9); /* Borde semi-transparente */
+    border-radius: 5px; /* Bordes redondeados */
+    font-size: 14px; /* Tamaño de fuente */
+    height: auto; /* Altura automática */
+    min-height: 200px; /* Altura mínima */
+    overflow-y: auto; /* Desplazamiento vertical si el contenido es largo */
+    resize: none; /* Evitar redimensionamiento */
+}
+
+/* Estilos para los títulos dentro del feedback */
+#feedbackContent h4 {
+    font-size: 1.2em; /* Tamaño relativo para los títulos */
+    margin-bottom: 10px; /* Espaciado inferior */
+}
+
+/* Estilos para los párrafos dentro del feedback */
+#feedbackContent p {
+    font-size: 1em; /* Tamaño relativo para los párrafos */
+    margin-bottom: 20px; /* Espaciado inferior */
+}
+
+.feedback-item {
+    margin-bottom: 15px;
+    padding: 10px;
+    border-left: 4px solid #007bff;
+    background: #f8f9fa;
+}
+
+/* Estilos para el análisis de rendimiento */
+.performance-chart {
+    margin: 20px 0;
+    height: 300px;
+}
+
+/* Estilos para las recomendaciones */
+.recommendation-item {
+    margin-bottom: 15px;
+    padding: 15px;
+    border-left: 4px solid #28a745;
+    background: #333; /* Fondo oscuro */
+    color: white; /* Texto blanco */
+}
+
+/* Estilo para el contenedor de las recomendaciones */
+#recommendationsContainer {
+    background-color: rgba(0, 0, 0, 0.9); /* Fondo negro sólido */
+    color: white; /* Texto blanco */
+    padding: 15px;
+    border-radius: 5px;
+}
+
+
+#loadingSpinner {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .auth-form {
+        margin: 20px auto;
+        padding: 15px;
+    }
+    
+    .flashcard-inner {
+        height: 150px;
+    }
+} 
+
+.chat-container {
+    max-width: 800px;
+    margin: 20px auto;
+    border: 1px solid #000000;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.chat-messages {
+    height: 500px;
+    overflow-y: auto;
+    padding: 20px;
+    background-color: black;
+}
+
+.message {
+    margin-bottom: 15px;
+    padding: 10px;
+    border-radius: 8px;
+    max-width: 80%;
+}
+
+.user-message {
+    background-color: #bd2130;
+    color: white;
+    margin-left: auto;
+}
+
+.assistant-message {
+    background-color: rgb(46, 46, 46);
+    color: white;
+}
+
+.chat-input-container {
+    display: flex;
+    padding: 15px;
+    background-color: rgb(0, 0, 0);
+    border-top: 1px solid #000000;
+}
+
+.chat-input-container textarea {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    margin-right: 10px;
+    resize: none;
+    height: 40px;
+}
+
+.chat-input-container button {
+    padding: 10px 20px;
+    background-color: #bd2130;
+    border-color: #b21f2d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.chat-input-container button:hover {
+    background-color: #c82333; /* Rojo más oscuro */
+    border-color: #bd2130; /* Borde más oscuro */
+    color: white;
+}
+
+.feedback-container {
+    padding: 20px;
+    background-color: black; /* Fondo negro */
+    border-top: 1px solid #ddd;
+    color: white; /* Texto blanco en el contenedor */
+}
+
+.feedback-container h3 {
+    margin-top: 0;
+    color: white; /* Título en blanco */
+}
+
+#feedback-content {
+    white-space: pre-wrap;
+    line-height: 1.5;
+    color: white; /* Texto del contenido en blanco */
+}
+
