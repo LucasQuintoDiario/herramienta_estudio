@@ -16,7 +16,7 @@ from nltk.tokenize import sent_tokenize
 import nltk
 from nltk.corpus import stopwords
 import string
-from IPython.display import display
+from sklearn.feature_extraction.text import TfidfVectorizer
 
 # Download required NLTK data
 try:
@@ -48,11 +48,9 @@ if not all([COHERE_API_KEY, PINECONE_API_KEY, PINECONE_ENVIRONMENT]):
     raise ValueError("Missing required environment variables")
 
 try:
-    # Initialize Cohere client
     co = cohere.Client(COHERE_API_KEY)
     logger.info("Cohere client initialized successfully")
     
-    # Initialize Pinecone with new syntax
     pc = Pinecone(api_key=PINECONE_API_KEY)
     logger.info("Pinecone initialized successfully")
 except Exception as e:
@@ -151,6 +149,7 @@ class RAGSystem:
         self.embeddings = None
         self.pdf_sources = []
         self.text_cleaner = TextCleaner()
+        self.memory= {}
         
         try:
             # Inicializar Cohere para embeddings
@@ -339,38 +338,33 @@ class RAGSystem:
             raise
 
     def search_similar_chunks(self, query: str, k: int = 5) -> List[Tuple[str, str]]:
-        """Search for similar chunks using Pinecone."""
         try:
-            # Generate query embedding using Cohere
             query_embedding = self.co.embed(
                 texts=[query],
                 model='embed-multilingual-v2.0',
                 input_type='search_query'
             ).embeddings[0]
-            
-            # Search in Pinecone
+
             results = self.index.query(
                 vector=query_embedding,
-                top_k=k,
+                top_k=k * 2,
                 include_metadata=True
             )
-            
-            # Extract text chunks and sources from results
+
             chunks = [(match['metadata']['text'], match['metadata']['source']) 
-                     for match in results['matches']]
-            
-            # Remove duplicates
-            unique_results = []
-            seen_chunks = set()
-            for chunk, source in chunks:
-                if chunk not in seen_chunks:
-                    seen_chunks.add(chunk)
-                    unique_results.append((chunk, source))
-            
-            logger.info(f"Successfully found {len(unique_results)} unique similar chunks")
+                    for match in results['matches']]
+
+            texts = [chunk[0] for chunk in chunks]
+            vectorizer = TfidfVectorizer()
+            tfidf_matrix = vectorizer.fit_transform(texts + [query])
+            cosine_similarities = (tfidf_matrix * tfidf_matrix.T).toarray()[-1, :-1]
+            sorted_indices = cosine_similarities.argsort()[-k:][::-1]
+            unique_results = [chunks[i] for i in sorted_indices]
+
+            logger.info(f"Encontrados {len(unique_results)} fragmentos relevantes.")
             return unique_results
         except Exception as e:
-            logger.error(f"Error searching for similar chunks: {e}")
+            logger.error(f"Error en la búsqueda híbrida: {e}")
             raise
 
     def process_file(self, file_path: str):
@@ -420,22 +414,29 @@ class RAGSystem:
             raise
 
     def query(self, question: str) -> str:
-        """Process a query and return the response."""
         try:
-            # Search for relevant chunks
             relevant_chunks = self.search_similar_chunks(question)
+            
             if not relevant_chunks:
                 web_info = search_thebridge_web(question)
                 relevant_chunks.append((web_info, "Fuente externa"))
             
-            # Build prompt
-            prompt = self.build_prompt(question, relevant_chunks)
+            seen_chunks = set()
+            filtered_chunks = []
+            for chunk, source in relevant_chunks:
+                if chunk not in seen_chunks:
+                    seen_chunks.add(chunk)
+                    filtered_chunks.append((chunk, source))
             
-            # Get response from LLM
+            memory_text = "\n".join([f"Q: {q}\nA: {a}" for q, a in list(self.memory.items())[-3:]])
+            prompt = f"{memory_text}\n\n{self.build_prompt(question, filtered_chunks)}"
+            
             response = self.get_llm_response(prompt)
+            
+            self.memory[question] = response
             return response
         except Exception as e:
-            logger.error(f"Error processing query: {e}")
+            logger.error(f"Error en query con memoria y análisis de relevancia: {e}")
             raise
 
     def build_prompt(self, query: str, relevant_chunks: List[Tuple[str, str]]) -> str:
@@ -453,6 +454,16 @@ class RAGSystem:
 
             Nota importante: "Carreer Readiness" No es un bootcamp. Es un servicio adicional que ayuda a 
             mejorar su empleabilidad mediante asesoramiento.
+
+            Si la información en la base de datos no es suficiente, realiza una búsqueda 
+            sólo en estos sitios web:
+            - https://thebridge.tech
+            - https://thebridge.tech/campus-madrid/
+            - https://thebridge.tech/campus-online/
+            - https://thebridge.tech/campus-bilbao/
+            - https://thebridge.tech/campus-valencia/
+            - https://thebridge.tech/quienes-somos/
+            - https://thebridge.tech/bootcamps/
 
             Consulta: {query}
 
@@ -482,7 +493,7 @@ class RAGSystem:
                 prompt=prompt,
                 max_tokens=150,
                 temperature=0.2,
-                k=0,
+                k=8,
                 stop_sequences=[],
                 return_likelihoods='NONE',
                 model='command-r-plus'

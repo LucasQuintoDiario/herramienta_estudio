@@ -9,7 +9,7 @@ class ActionProvider {
 
   handleUserMessage(message) {
     // Llamada al backend
-    fetch('http://localhost:5000/chat', {
+    fetch('https://chatbot-backend-288792351129.us-central1.run.app/chat', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

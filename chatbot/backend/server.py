@@ -78,6 +78,19 @@ async def chat(request: QueryRequest):
     except Exception as e:
         logger.error(f"Error en la consulta RAG: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error en la consulta RAG: {str(e)}")    
-    
+
+port = int(os.getenv("PORT", 8080))
+
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=5000)
+    uvicorn.run(app, host="0.0.0.0", port=port)
+
+
+
+
+
+
+
+
+
+
+
